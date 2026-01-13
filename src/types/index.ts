@@ -53,4 +53,70 @@ export interface StoreInfo {
   phone?: string;
 }
 
-export type TabType = 'attendance' | 'income' | 'expense' | 'history' | 'leave' | 'daily' | 'summary' | 'settings';
+export type TabType = 'attendance' | 'income' | 'expense' | 'history' | 'leave' | 'daily' | 'summary' | 'settings' | 'reports' | 'users';
+
+// Auth & Roles
+export type AppRole = 'admin' | 'finance' | 'staff';
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserRole {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
+}
+
+// Role permissions
+export const ROLE_PERMISSIONS: Record<AppRole, {
+  canManageEmployees: boolean;
+  canManageRoles: boolean;
+  canViewFinance: boolean;
+  canEditFinance: boolean;
+  canViewAttendance: boolean;
+  canEditAttendance: boolean;
+  canViewSettings: boolean;
+  canExportData: boolean;
+  canPrintReports: boolean;
+}> = {
+  admin: {
+    canManageEmployees: true,
+    canManageRoles: true,
+    canViewFinance: true,
+    canEditFinance: true,
+    canViewAttendance: true,
+    canEditAttendance: true,
+    canViewSettings: true,
+    canExportData: true,
+    canPrintReports: true,
+  },
+  finance: {
+    canManageEmployees: false,
+    canManageRoles: false,
+    canViewFinance: true,
+    canEditFinance: true,
+    canViewAttendance: true,
+    canEditAttendance: false,
+    canViewSettings: false,
+    canExportData: true,
+    canPrintReports: true,
+  },
+  staff: {
+    canManageEmployees: false,
+    canManageRoles: false,
+    canViewFinance: false,
+    canEditFinance: false,
+    canViewAttendance: true,
+    canEditAttendance: true,
+    canViewSettings: false,
+    canExportData: false,
+    canPrintReports: false,
+  },
+};

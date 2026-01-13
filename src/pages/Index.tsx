@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
-import { LoginScreen } from '@/components/LoginScreen';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Navigation } from '@/components/Navigation';
 import { AttendanceTab } from '@/components/AttendanceTab';
@@ -10,11 +11,12 @@ import { LeaveTab } from '@/components/LeaveTab';
 import { DailyReportTab } from '@/components/DailyReportTab';
 import { SummaryTab } from '@/components/SummaryTab';
 import { SettingsTab } from '@/components/SettingsTab';
+import { PrintReportsTab } from '@/components/PrintReportsTab';
+import { UserManagementTab } from '@/components/UserManagementTab';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAuth } from '@/hooks/useAuth';
 import { Employee, Attendance, Income, Expense, Leave, StoreInfo, TabType } from '@/types';
 import { toast } from 'sonner';
-
-const CORRECT_PASSWORD = '2001';
 
 const defaultStoreInfo: StoreInfo = {
   name: 'KY SKIN',
@@ -26,7 +28,8 @@ const defaultEmployees: Employee[] = [
 ];
 
 const Index = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, role, profile, loading, permissions, signOut } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('attendance');
 
   // Data storage
@@ -36,6 +39,13 @@ const Index = () => {
   const [incomes, setIncomes] = useLocalStorage<Income[]>('ky-incomes', []);
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('ky-expenses', []);
   const [leaves, setLeaves] = useLocalStorage<Leave[]>('ky-leaves', []);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
 
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -176,15 +186,37 @@ const Index = () => {
     toast.success('ລຶບຂໍ້ມູນທັງໝົດສຳເລັດ');
   }, [setAttendances, setIncomes, setExpenses, setLeaves]);
 
-  // Render login screen if not authenticated
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => setIsAuthenticated(true)} correctPassword={CORRECT_PASSWORD} />;
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return null;
   }
 
   return (
     <div className="min-h-screen">
-      <Header onLogout={() => setIsAuthenticated(false)} />
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <Header 
+        onLogout={handleLogout} 
+        userRole={role} 
+        userName={profile?.full_name} 
+      />
+      <Navigation 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        userRole={role} 
+      />
 
       <main className="container mx-auto px-4 py-6">
         {activeTab === 'attendance' && (
@@ -201,6 +233,8 @@ const Index = () => {
             incomes={incomes}
             onAddIncome={handleAddIncome}
             onDeleteIncome={handleDeleteIncome}
+            storeInfo={storeInfo}
+            canEdit={permissions?.canEditFinance}
           />
         )}
         {activeTab === 'expense' && (
@@ -228,6 +262,16 @@ const Index = () => {
         {activeTab === 'summary' && (
           <SummaryTab incomes={incomes} expenses={expenses} attendances={attendances} />
         )}
+        {activeTab === 'reports' && (
+          <PrintReportsTab
+            incomes={incomes}
+            expenses={expenses}
+            attendances={attendances}
+            employees={employees}
+            storeInfo={storeInfo}
+          />
+        )}
+        {activeTab === 'users' && <UserManagementTab />}
         {activeTab === 'settings' && (
           <SettingsTab
             storeInfo={storeInfo}
