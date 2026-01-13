@@ -6,32 +6,48 @@ import {
   Calendar, 
   BarChart3, 
   Calculator, 
-  Settings 
+  Settings,
+  FileText,
+  Users
 } from 'lucide-react';
-import { TabType } from '@/types';
+import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
 interface NavigationProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  userRole?: AppRole | null;
 }
 
-const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [
-  { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock },
-  { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp },
-  { id: 'expense', label: 'ລາຍຈ່າຍ', icon: TrendingDown },
-  { id: 'history', label: 'ປະຫວັດ', icon: History },
+const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPermission?: keyof typeof ROLE_PERMISSIONS['admin'] }[] = [
+  { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock, requiredPermission: 'canViewAttendance' },
+  { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp, requiredPermission: 'canViewFinance' },
+  { id: 'expense', label: 'ລາຍຈ່າຍ', icon: TrendingDown, requiredPermission: 'canViewFinance' },
+  { id: 'history', label: 'ປະຫວັດ', icon: History, requiredPermission: 'canViewFinance' },
   { id: 'leave', label: 'ລາພັກ', icon: Calendar },
-  { id: 'daily', label: 'ລາຍວັນ', icon: BarChart3 },
-  { id: 'summary', label: 'ສະຫຼຸບ', icon: Calculator },
-  { id: 'settings', label: 'ຕັ້ງຄ່າ', icon: Settings },
+  { id: 'daily', label: 'ລາຍວັນ', icon: BarChart3, requiredPermission: 'canViewFinance' },
+  { id: 'summary', label: 'ສະຫຼຸບ', icon: Calculator, requiredPermission: 'canViewFinance' },
+  { id: 'reports', label: 'ພິມລາຍງານ', icon: FileText, requiredPermission: 'canPrintReports' },
+  { id: 'users', label: 'ຜູ້ໃຊ້', icon: Users, requiredPermission: 'canManageRoles' },
+  { id: 'settings', label: 'ຕັ້ງຄ່າ', icon: Settings, requiredPermission: 'canViewSettings' },
 ];
 
-export function Navigation({ activeTab, onTabChange }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, userRole }: NavigationProps) {
+  const permissions = userRole ? ROLE_PERMISSIONS[userRole] : null;
+
+  const visibleTabs = allTabs.filter(tab => {
+    // If no permission required, show to everyone
+    if (!tab.requiredPermission) return true;
+    // If no role/permissions, hide tabs that require permissions
+    if (!permissions) return false;
+    // Check if user has required permission
+    return permissions[tab.requiredPermission];
+  });
+
   return (
     <nav className="card-luxury border-b border-border sticky top-[88px] z-40 overflow-x-auto">
       <div className="container mx-auto px-2">
         <div className="flex gap-1 py-2 min-w-max">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (

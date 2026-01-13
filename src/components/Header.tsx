@@ -1,11 +1,14 @@
-import { Sparkles, LogOut, Clock } from 'lucide-react';
+import { Sparkles, LogOut, Clock, Crown, Briefcase, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { AppRole } from '@/types';
 
 interface HeaderProps {
   onLogout: () => void;
+  userRole?: AppRole | null;
+  userName?: string;
 }
 
-export function Header({ onLogout }: HeaderProps) {
+export function Header({ onLogout, userRole, userName }: HeaderProps) {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -28,6 +31,28 @@ export function Header({ onLogout }: HeaderProps) {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const getRoleIcon = (role?: AppRole | null) => {
+    switch (role) {
+      case 'admin':
+        return <Crown className="w-4 h-4 text-primary" />;
+      case 'finance':
+        return <Briefcase className="w-4 h-4 text-success" />;
+      default:
+        return <User className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const getRoleLabel = (role?: AppRole | null) => {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'finance':
+        return 'Finance';
+      default:
+        return 'Staff';
+    }
   };
 
   return (
@@ -57,14 +82,29 @@ export function Header({ onLogout }: HeaderProps) {
             <span className="font-mono font-bold">{formatTime(time)}</span>
           </div>
 
-          {/* Logout */}
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">ອອກລະບົບ</span>
-          </button>
+          {/* User Info & Logout */}
+          <div className="flex items-center gap-3">
+            {/* User Role Badge */}
+            {userRole && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg">
+                {getRoleIcon(userRole)}
+                <div className="text-sm">
+                  {userName && <span className="font-medium text-foreground">{userName}</span>}
+                  <span className={`ml-1 text-xs ${userRole === 'admin' ? 'text-primary' : userRole === 'finance' ? 'text-success' : 'text-muted-foreground'}`}>
+                    ({getRoleLabel(userRole)})
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">ອອກລະບົບ</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
