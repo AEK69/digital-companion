@@ -19,7 +19,7 @@ import { Employee, Attendance, Income, Expense, Leave, StoreInfo, TabType } from
 import { toast } from 'sonner';
 
 const defaultStoreInfo: StoreInfo = {
-  name: 'KY SKIN',
+  name: 'AEK SHOP',
 };
 
 const defaultEmployees: Employee[] = [
@@ -210,7 +210,8 @@ const Index = () => {
       <Header 
         onLogout={handleLogout} 
         userRole={role} 
-        userName={profile?.full_name} 
+        userName={profile?.full_name}
+        storeName={storeInfo.name}
       />
       <Navigation 
         activeTab={activeTab} 
