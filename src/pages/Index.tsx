@@ -12,6 +12,7 @@ import { DailyReportTab } from '@/components/DailyReportTab';
 import { SummaryTab } from '@/components/SummaryTab';
 import { SettingsTab } from '@/components/SettingsTab';
 import { PrintReportsTab } from '@/components/PrintReportsTab';
+import { ExportDataTab } from '@/components/ExportDataTab';
 import { UserManagementTab } from '@/components/UserManagementTab';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from '@/hooks/useAuth';
@@ -270,6 +271,15 @@ const Index = () => {
             attendances={attendances}
             employees={employees}
             storeInfo={storeInfo}
+          />
+        )}
+        {activeTab === 'export' && (
+          <ExportDataTab
+            incomes={incomes}
+            expenses={expenses}
+            attendances={attendances}
+            leaves={leaves}
+            employees={employees}
           />
         )}
         {activeTab === 'users' && <UserManagementTab />}

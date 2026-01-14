@@ -8,7 +8,8 @@ import {
   Calculator, 
   Settings,
   FileText,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -27,6 +28,7 @@ const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPe
   { id: 'daily', label: 'ລາຍວັນ', icon: BarChart3, requiredPermission: 'canViewFinance' },
   { id: 'summary', label: 'ສະຫຼຸບ', icon: Calculator, requiredPermission: 'canViewFinance' },
   { id: 'reports', label: 'ພິມລາຍງານ', icon: FileText, requiredPermission: 'canPrintReports' },
+  { id: 'export', label: 'ສົ່ງອອກ', icon: Download, requiredPermission: 'canExportData' },
   { id: 'users', label: 'ຜູ້ໃຊ້', icon: Users, requiredPermission: 'canManageRoles' },
   { id: 'settings', label: 'ຕັ້ງຄ່າ', icon: Settings, requiredPermission: 'canViewSettings' },
 ];
