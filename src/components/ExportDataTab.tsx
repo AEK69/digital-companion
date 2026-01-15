@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Download, 
   FileSpreadsheet, 
@@ -9,10 +9,14 @@ import {
   Users,
   DollarSign,
   Clock,
-  Calendar
+  Calendar,
+  Zap,
+  ZapOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Employee, Income, Expense, Attendance, Leave } from '@/types';
 import { 
   exportToCSV, 
@@ -32,6 +36,9 @@ interface ExportDataTabProps {
   attendances: Attendance[];
   leaves: Leave[];
   employees: Employee[];
+  autoSyncSpreadsheetId: string | null;
+  autoSyncEnabled: boolean;
+  onAutoSyncSettingsChange: (spreadsheetId: string | null, enabled: boolean) => void;
 }
 
 export function ExportDataTab({
@@ -40,8 +47,11 @@ export function ExportDataTab({
   attendances,
   leaves,
   employees,
+  autoSyncSpreadsheetId,
+  autoSyncEnabled,
+  onAutoSyncSettingsChange,
 }: ExportDataTabProps) {
-  const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [spreadsheetId, setSpreadsheetId] = useState(autoSyncSpreadsheetId || '');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -185,7 +195,12 @@ export function ExportDataTab({
             </label>
             <Input
               value={spreadsheetId}
-              onChange={(e) => setSpreadsheetId(e.target.value)}
+              onChange={(e) => {
+                setSpreadsheetId(e.target.value);
+                if (autoSyncEnabled) {
+                  onAutoSyncSettingsChange(e.target.value, true);
+                }
+              }}
               placeholder="ເຊັ່ນ: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
               className="input-luxury"
             />
@@ -193,6 +208,46 @@ export function ExportDataTab({
               ຫາໄດ້ຈາກ URL: https://docs.google.com/spreadsheets/d/<span className="text-primary">[SPREADSHEET_ID]</span>/edit
             </p>
           </div>
+
+          {/* Auto-sync toggle */}
+          <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              {autoSyncEnabled ? (
+                <Zap className="w-5 h-5 text-primary" />
+              ) : (
+                <ZapOff className="w-5 h-5 text-muted-foreground" />
+              )}
+              <div>
+                <Label htmlFor="auto-sync" className="font-medium cursor-pointer">
+                  Auto-sync ອັດຕະໂນມັດ
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Sync ຂໍ້ມູນໄປ Google Sheets ທຸກຄັ້ງທີ່ມີການປ່ຽນແປງ
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="auto-sync"
+              checked={autoSyncEnabled}
+              onCheckedChange={(checked) => {
+                onAutoSyncSettingsChange(spreadsheetId || null, checked);
+                if (checked && spreadsheetId) {
+                  toast.success('ເປີດໃຊ້ Auto-sync ແລ້ວ! ຂໍ້ມູນຈະ sync ອັດຕະໂນມັດ');
+                } else if (checked && !spreadsheetId) {
+                  toast.warning('ກະລຸນາປ້ອນ Spreadsheet ID ກ່ອນ');
+                  onAutoSyncSettingsChange(null, false);
+                }
+              }}
+              disabled={!spreadsheetId.trim()}
+            />
+          </div>
+
+          {autoSyncEnabled && (
+            <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg text-sm">
+              <Zap className="w-4 h-4 text-primary" />
+              <span>Auto-sync ເປີດໃຊ້ງານຢູ່ - ຂໍ້ມູນຈະ sync ພາຍໃນ 5 ວິນາທີຫຼັງການປ່ຽນແປງ</span>
+            </div>
+          )}
 
           <Button
             onClick={handleSyncGoogleSheets}
@@ -217,7 +272,7 @@ export function ExportDataTab({
             ) : (
               <>
                 <RefreshCw className="w-5 h-5" />
-                Sync ກັບ Google Sheets
+                Sync ກັບ Google Sheets ດຽວນີ້
               </>
             )}
           </Button>
