@@ -16,6 +16,8 @@ import { ExportDataTab } from '@/components/ExportDataTab';
 import { UserManagementTab } from '@/components/UserManagementTab';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useAutoSync } from '@/hooks/useAutoSync';
 import { Employee, Attendance, Income, Expense, Leave, StoreInfo, TabType } from '@/types';
 import { toast } from 'sonner';
 
@@ -40,6 +42,31 @@ const Index = () => {
   const [incomes, setIncomes] = useLocalStorage<Income[]>('ky-incomes', []);
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('ky-expenses', []);
   const [leaves, setLeaves] = useLocalStorage<Leave[]>('ky-leaves', []);
+  
+  // Auto-sync settings
+  const [autoSyncSpreadsheetId, setAutoSyncSpreadsheetId] = useLocalStorage<string | null>('ky-auto-sync-spreadsheet-id', null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useLocalStorage<boolean>('ky-auto-sync-enabled', false);
+
+  // Notifications hook
+  useNotifications({ incomes, expenses, employees });
+
+  // Auto-sync hook
+  const { triggerSync } = useAutoSync({
+    incomes,
+    expenses,
+    attendances,
+    leaves,
+    employees,
+    spreadsheetId: autoSyncSpreadsheetId,
+    enabled: autoSyncEnabled,
+  });
+
+  // Trigger sync when data changes
+  useEffect(() => {
+    if (autoSyncEnabled && autoSyncSpreadsheetId) {
+      triggerSync();
+    }
+  }, [incomes, expenses, attendances, leaves, employees, autoSyncEnabled, autoSyncSpreadsheetId, triggerSync]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -280,6 +307,12 @@ const Index = () => {
             attendances={attendances}
             leaves={leaves}
             employees={employees}
+            autoSyncSpreadsheetId={autoSyncSpreadsheetId}
+            autoSyncEnabled={autoSyncEnabled}
+            onAutoSyncSettingsChange={(spreadsheetId, enabled) => {
+              setAutoSyncSpreadsheetId(spreadsheetId);
+              setAutoSyncEnabled(enabled);
+            }}
           />
         )}
         {activeTab === 'users' && <UserManagementTab />}
