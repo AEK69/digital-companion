@@ -240,6 +240,17 @@ function formatDataForSheet(type: string, data: unknown[]): unknown[][] {
   }
 }
 
+// Extract spreadsheet ID from URL or return ID as-is
+function extractSpreadsheetId(input: string): string {
+  // If it's a full URL, extract the ID
+  const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+  // Otherwise assume it's already just the ID
+  return input.trim();
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -247,17 +258,21 @@ serve(async (req) => {
   }
 
   try {
-    const { spreadsheetId, data } = await req.json();
+    const { spreadsheetId: rawSpreadsheetId, data } = await req.json();
 
-    if (!spreadsheetId) {
+    if (!rawSpreadsheetId) {
       return new Response(
         JSON.stringify({ error: 'Spreadsheet ID is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Extract spreadsheet ID from URL if needed
+    const spreadsheetId = extractSpreadsheetId(rawSpreadsheetId);
+
     console.log('Starting Google Sheets sync...');
-    console.log('Spreadsheet ID:', spreadsheetId);
+    console.log('Raw input:', rawSpreadsheetId);
+    console.log('Extracted Spreadsheet ID:', spreadsheetId);
 
     // Get access token
     const accessToken = await getGoogleAccessToken();
