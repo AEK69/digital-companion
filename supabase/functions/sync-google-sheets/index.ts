@@ -1,10 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { create, getNumericDate } from "https://deno.land/x/djwt@v2.8/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper function to base64url encode
+function base64urlEncode(data: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...data));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Helper function to create JWT manually without external library
+async function createJWT(payload: Record<string, unknown>, privateKey: CryptoKey): Promise<string> {
+  const header = { alg: "RS256", typ: "JWT" };
+  
+  const encoder = new TextEncoder();
+  const headerB64 = base64urlEncode(encoder.encode(JSON.stringify(header)));
+  const payloadB64 = base64urlEncode(encoder.encode(JSON.stringify(payload)));
+  
+  const signatureInput = `${headerB64}.${payloadB64}`;
+  const signatureInputBytes = encoder.encode(signatureInput);
+  
+  const signature = await crypto.subtle.sign(
+    { name: "RSASSA-PKCS1-v1_5" },
+    privateKey,
+    signatureInputBytes
+  );
+  
+  const signatureB64 = base64urlEncode(new Uint8Array(signature));
+  
+  return `${headerB64}.${payloadB64}.${signatureB64}`;
+}
 
 // Google Sheets API utilities
 async function getGoogleAccessToken(): Promise<string> {
@@ -12,11 +39,23 @@ async function getGoogleAccessToken(): Promise<string> {
   const privateKeyPem = Deno.env.get('GOOGLE_PRIVATE_KEY');
 
   if (!serviceAccountEmail || !privateKeyPem) {
-    throw new Error('Google service account credentials not configured');
+    throw new Error('Google service account credentials not configured. Please add GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY secrets.');
   }
 
-  // Parse the private key
-  const privateKey = privateKeyPem.replace(/\\n/g, '\n');
+  console.log('Service account email:', serviceAccountEmail);
+
+  // Parse the private key - handle various formats
+  let privateKey = privateKeyPem;
+  
+  // Replace literal \n with actual newlines
+  privateKey = privateKey.replace(/\\n/g, '\n');
+  
+  // If the key is wrapped in quotes, remove them
+  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+    privateKey = privateKey.slice(1, -1);
+  }
+  
+  console.log('Private key starts with:', privateKey.substring(0, 50));
   
   // Create JWT for Google OAuth
   const now = Math.floor(Date.now() / 1000);
@@ -31,46 +70,59 @@ async function getGoogleAccessToken(): Promise<string> {
   // Import the private key
   const pemHeader = "-----BEGIN PRIVATE KEY-----";
   const pemFooter = "-----END PRIVATE KEY-----";
+  
+  // Extract the base64 content between headers
+  const pemStartIndex = privateKey.indexOf(pemHeader);
+  const pemEndIndex = privateKey.indexOf(pemFooter);
+  
+  if (pemStartIndex === -1 || pemEndIndex === -1) {
+    console.error('Invalid private key format - missing PEM headers');
+    console.error('Key preview:', privateKey.substring(0, 100));
+    throw new Error('Invalid private key format - missing PEM headers. Make sure to include the full private key from the JSON file.');
+  }
+  
   const pemContents = privateKey
-    .replace(pemHeader, '')
-    .replace(pemFooter, '')
+    .substring(pemStartIndex + pemHeader.length, pemEndIndex)
     .replace(/\s/g, '');
   
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  console.log('PEM contents length:', pemContents.length);
   
-  const cryptoKey = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryDer,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    true,
-    ["sign"]
-  );
+  try {
+    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+    
+    const cryptoKey = await crypto.subtle.importKey(
+      "pkcs8",
+      binaryDer,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      true,
+      ["sign"]
+    );
 
-  // Create JWT
-  const jwt = await create(
-    { alg: "RS256", typ: "JWT" },
-    payload,
-    cryptoKey
-  );
+    // Create JWT using our helper function
+    const jwt = await createJWT(payload, cryptoKey);
 
-  // Exchange JWT for access token
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt,
+      }),
+    });
 
-  const tokenData = await tokenResponse.json();
-  
-  if (!tokenData.access_token) {
-    console.error('Token response:', tokenData);
-    throw new Error('Failed to get Google access token');
+    const tokenData = await tokenResponse.json();
+    
+    if (!tokenData.access_token) {
+      console.error('Token response:', JSON.stringify(tokenData));
+      throw new Error(`Failed to get Google access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
+    }
+
+    return tokenData.access_token;
+  } catch (error) {
+    console.error('Error importing private key:', error);
+    throw new Error(`Failed to import private key: ${error instanceof Error ? error.message : String(error)}. Please ensure the GOOGLE_PRIVATE_KEY secret contains the full private key from your service account JSON file.`);
   }
-
-  return tokenData.access_token;
 }
 
 async function updateSheet(
