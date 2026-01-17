@@ -154,12 +154,78 @@ async function getGoogleAccessToken(): Promise<string> {
   }
 }
 
+// Ensure sheet exists, create if not
+async function ensureSheetExists(
+  accessToken: string,
+  spreadsheetId: string,
+  sheetName: string
+): Promise<void> {
+  // First, get the spreadsheet to check existing sheets
+  const getResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!getResponse.ok) {
+    const error = await getResponse.text();
+    console.error('Failed to get spreadsheet info:', error);
+    throw new Error('Failed to get spreadsheet info');
+  }
+
+  const spreadsheetInfo = await getResponse.json();
+  const existingSheets = spreadsheetInfo.sheets?.map((s: any) => s.properties?.title) || [];
+  
+  console.log('Existing sheets:', existingSheets);
+
+  // If sheet doesn't exist, create it
+  if (!existingSheets.includes(sheetName)) {
+    console.log(`Creating new sheet: ${sheetName}`);
+    
+    const createResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetName,
+                },
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!createResponse.ok) {
+      const error = await createResponse.text();
+      console.error(`Failed to create sheet ${sheetName}:`, error);
+      throw new Error(`Failed to create sheet ${sheetName}`);
+    }
+    
+    console.log(`Sheet ${sheetName} created successfully`);
+  }
+}
+
 async function updateSheet(
   accessToken: string,
   spreadsheetId: string,
   sheetName: string,
   data: unknown[][]
 ) {
+  // First ensure the sheet exists
+  await ensureSheetExists(accessToken, spreadsheetId, sheetName);
+  
   const range = `${sheetName}!A1`;
   
   // Clear existing data first
