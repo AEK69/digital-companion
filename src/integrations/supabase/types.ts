@@ -14,6 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendances: {
+        Row: {
+          bonus: number
+          clock_in: string | null
+          clock_out: string | null
+          created_at: string
+          date: string
+          employee_id: string
+          hours: number
+          id: string
+          total: number
+          updated_at: string
+          wage: number
+        }
+        Insert: {
+          bonus?: number
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date: string
+          employee_id: string
+          hours?: number
+          id?: string
+          total?: number
+          updated_at?: string
+          wage?: number
+        }
+        Update: {
+          bonus?: number
+          clock_in?: string | null
+          clock_out?: string | null
+          created_at?: string
+          date?: string
+          employee_id?: string
+          hours?: number
+          id?: string
+          total?: number
+          updated_at?: string
+          wage?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          hourly_rate: number
+          id: string
+          name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string | null
+          id: string
+          payment_method: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          payment_method?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          payment_method?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incomes: {
+        Row: {
+          amount: number
+          cost: number
+          created_at: string
+          date: string
+          description: string | null
+          employee_id: string
+          id: string
+          payment_method: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          cost?: number
+          created_at?: string
+          date: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          payment_method?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cost?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          payment_method?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incomes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leaves: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          reason: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          employee_id: string
+          id?: string
+          reason?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          reason?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaves_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -38,6 +247,42 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      store_settings: {
+        Row: {
+          address: string | null
+          auto_sync_enabled: boolean
+          created_at: string
+          google_spreadsheet_id: string | null
+          id: string
+          logo: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          auto_sync_enabled?: boolean
+          created_at?: string
+          google_spreadsheet_id?: string | null
+          id?: string
+          logo?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          auto_sync_enabled?: boolean
+          created_at?: string
+          google_spreadsheet_id?: string | null
+          id?: string
+          logo?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
