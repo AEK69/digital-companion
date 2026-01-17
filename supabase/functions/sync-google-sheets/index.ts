@@ -45,7 +45,26 @@ async function getGoogleAccessToken(): Promise<string> {
   console.log('Service account email:', serviceAccountEmail);
 
   // Parse the private key - handle various formats
-  let privateKey = privateKeyPem;
+  let privateKey = privateKeyPem.trim();
+  
+  // Handle case where user pasted JSON field format like: "private_key": "-----BEGIN..."
+  // Extract just the key value
+  const jsonFieldMatch = privateKey.match(/"private_key"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (jsonFieldMatch) {
+    privateKey = jsonFieldMatch[1];
+    console.log('Extracted private key from JSON field format');
+  }
+  
+  // Handle case where user pasted entire JSON object
+  try {
+    const parsed = JSON.parse(privateKey);
+    if (parsed.private_key) {
+      privateKey = parsed.private_key;
+      console.log('Extracted private key from JSON object');
+    }
+  } catch {
+    // Not JSON, continue with string parsing
+  }
   
   // Replace literal \n with actual newlines
   privateKey = privateKey.replace(/\\n/g, '\n');
@@ -55,7 +74,11 @@ async function getGoogleAccessToken(): Promise<string> {
     privateKey = privateKey.slice(1, -1);
   }
   
-  console.log('Private key starts with:', privateKey.substring(0, 50));
+  // Trim whitespace
+  privateKey = privateKey.trim();
+  
+  console.log('Private key starts with:', privateKey.substring(0, 40));
+  console.log('Private key ends with:', privateKey.substring(privateKey.length - 30));
   
   // Create JWT for Google OAuth
   const now = Math.floor(Date.now() / 1000);
@@ -78,7 +101,7 @@ async function getGoogleAccessToken(): Promise<string> {
   if (pemStartIndex === -1 || pemEndIndex === -1) {
     console.error('Invalid private key format - missing PEM headers');
     console.error('Key preview:', privateKey.substring(0, 100));
-    throw new Error('Invalid private key format - missing PEM headers. Make sure to include the full private key from the JSON file.');
+    throw new Error('Invalid private key format - missing PEM headers. Make sure to copy only the value of "private_key" field from your JSON file (including -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----).');
   }
   
   const pemContents = privateKey
@@ -86,6 +109,12 @@ async function getGoogleAccessToken(): Promise<string> {
     .replace(/\s/g, '');
   
   console.log('PEM contents length:', pemContents.length);
+  
+  // Validate PEM content length (RSA private keys are typically 1600-2400 base64 chars)
+  if (pemContents.length < 500) {
+    console.error('Private key content appears truncated');
+    throw new Error(`Private key appears truncated (only ${pemContents.length} chars). Please ensure you copied the COMPLETE private key including all lines.`);
+  }
   
   try {
     const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
