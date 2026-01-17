@@ -14,38 +14,37 @@ import { SettingsTab } from '@/components/SettingsTab';
 import { PrintReportsTab } from '@/components/PrintReportsTab';
 import { ExportDataTab } from '@/components/ExportDataTab';
 import { UserManagementTab } from '@/components/UserManagementTab';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAutoSync } from '@/hooks/useAutoSync';
-import { Employee, Attendance, Income, Expense, Leave, StoreInfo, TabType } from '@/types';
-import { toast } from 'sonner';
-
-const defaultStoreInfo: StoreInfo = {
-  name: 'AEK SHOP',
-};
-
-const defaultEmployees: Employee[] = [
-  { id: '1', name: 'ສົມໃຈ', hourlyRate: 15000 },
-  { id: '2', name: 'ນ້ອຍໜຶ່ງ', hourlyRate: 15000 },
-];
+import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { useEmployees } from '@/hooks/useEmployees';
+import { useIncomes } from '@/hooks/useIncomes';
+import { useExpenses } from '@/hooks/useExpenses';
+import { useAttendances } from '@/hooks/useAttendances';
+import { useLeaves } from '@/hooks/useLeaves';
+import { TabType, StoreInfo } from '@/types';
 
 const Index = () => {
-  const { user, role, profile, loading, permissions, signOut } = useAuth();
+  const { user, role, profile, loading: authLoading, permissions, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('attendance');
 
-  // Data storage
-  const [storeInfo, setStoreInfo] = useLocalStorage<StoreInfo>('ky-store-info', defaultStoreInfo);
-  const [employees, setEmployees] = useLocalStorage<Employee[]>('ky-employees', defaultEmployees);
-  const [attendances, setAttendances] = useLocalStorage<Attendance[]>('ky-attendances', []);
-  const [incomes, setIncomes] = useLocalStorage<Income[]>('ky-incomes', []);
-  const [expenses, setExpenses] = useLocalStorage<Expense[]>('ky-expenses', []);
-  const [leaves, setLeaves] = useLocalStorage<Leave[]>('ky-leaves', []);
-  
-  // Auto-sync settings
-  const [autoSyncSpreadsheetId, setAutoSyncSpreadsheetId] = useLocalStorage<string | null>('ky-auto-sync-spreadsheet-id', null);
-  const [autoSyncEnabled, setAutoSyncEnabled] = useLocalStorage<boolean>('ky-auto-sync-enabled', false);
+  // Database hooks
+  const { storeSettings, loading: settingsLoading, updateSettings } = useStoreSettings();
+  const { employees, loading: employeesLoading, addEmployee, deleteEmployee } = useEmployees();
+  const { incomes, addIncome, deleteIncome } = useIncomes();
+  const { expenses, addExpense, deleteExpense } = useExpenses();
+  const { attendances, clockIn, clockOut } = useAttendances(employees);
+  const { leaves, addLeave, deleteLeave } = useLeaves();
+
+  // Convert store settings to StoreInfo format
+  const storeInfo: StoreInfo = {
+    name: storeSettings.name,
+    logo: storeSettings.logo,
+    address: storeSettings.address,
+    phone: storeSettings.phone,
+  };
 
   // Notifications hook
   useNotifications({ incomes, expenses, employees });
@@ -57,120 +56,52 @@ const Index = () => {
     attendances,
     leaves,
     employees,
-    spreadsheetId: autoSyncSpreadsheetId,
-    enabled: autoSyncEnabled,
+    spreadsheetId: storeSettings.googleSpreadsheetId,
+    enabled: storeSettings.autoSyncEnabled,
   });
 
   // Trigger sync when data changes
   useEffect(() => {
-    if (autoSyncEnabled && autoSyncSpreadsheetId) {
+    if (storeSettings.autoSyncEnabled && storeSettings.googleSpreadsheetId) {
       triggerSync();
     }
-  }, [incomes, expenses, attendances, leaves, employees, autoSyncEnabled, autoSyncSpreadsheetId, triggerSync]);
+  }, [incomes, expenses, attendances, leaves, employees, storeSettings.autoSyncEnabled, storeSettings.googleSpreadsheetId, triggerSync]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  // Generate unique ID
-  const generateId = () => Math.random().toString(36).substr(2, 9);
-
-  // Clock In/Out handlers
+  // Clock In/Out handlers (wrapper for database hooks)
   const handleClockIn = useCallback((employeeId: string, manualTime?: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const time = manualTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    
-    setAttendances((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        employeeId,
-        date: today,
-        clockIn: time,
-        hours: 0,
-        wage: 0,
-        bonus: 0,
-        total: 0,
-      },
-    ]);
-    toast.success('ບັນທຶກເຂົ້າວຽກສຳເລັດ');
-  }, [setAttendances]);
+    clockIn(employeeId, manualTime);
+  }, [clockIn]);
 
   const handleClockOut = useCallback((employeeId: string, manualTime?: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const time = manualTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    
-    setAttendances((prev) =>
-      prev.map((att) => {
-        if (att.employeeId === employeeId && att.date === today && !att.clockOut) {
-          const employee = employees.find((e) => e.id === employeeId);
-          const clockInTime = att.clockIn?.split(':').map(Number) || [0, 0];
-          const clockOutTime = time.split(':').map(Number);
-          const hours = (clockOutTime[0] - clockInTime[0]) + (clockOutTime[1] - clockInTime[1]) / 60;
-          const wage = Math.max(0, hours) * (employee?.hourlyRate || 0);
-          
-          return {
-            ...att,
-            clockOut: time,
-            hours: Math.max(0, hours),
-            wage,
-            total: wage,
-          };
-        }
-        return att;
-      })
-    );
-    toast.success('ບັນທຶກອອກວຽກສຳເລັດ');
-  }, [employees, setAttendances]);
+    clockOut(employeeId, manualTime);
+  }, [clockOut]);
 
-  // Income handlers
-  const handleAddIncome = useCallback((income: Omit<Income, 'id'>) => {
-    setIncomes((prev) => [...prev, { ...income, id: generateId() }]);
-    toast.success('ບັນທຶກລາຍຮັບສຳເລັດ');
-  }, [setIncomes]);
+  // Store info update handler
+  const handleUpdateStoreInfo = useCallback((info: StoreInfo) => {
+    updateSettings({
+      name: info.name,
+      logo: info.logo,
+      address: info.address,
+      phone: info.phone,
+    });
+  }, [updateSettings]);
 
-  const handleDeleteIncome = useCallback((id: string) => {
-    setIncomes((prev) => prev.filter((i) => i.id !== id));
-    toast.success('ລຶບລາຍຮັບສຳເລັດ');
-  }, [setIncomes]);
+  // Auto-sync settings change handler
+  const handleAutoSyncSettingsChange = useCallback((spreadsheetId: string | null, enabled: boolean) => {
+    updateSettings({
+      googleSpreadsheetId: spreadsheetId,
+      autoSyncEnabled: enabled,
+    });
+  }, [updateSettings]);
 
-  // Expense handlers
-  const handleAddExpense = useCallback((expense: Omit<Expense, 'id'>) => {
-    setExpenses((prev) => [...prev, { ...expense, id: generateId() }]);
-    toast.success('ບັນທຶກລາຍຈ່າຍສຳເລັດ');
-  }, [setExpenses]);
-
-  const handleDeleteExpense = useCallback((id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    toast.success('ລຶບລາຍຈ່າຍສຳເລັດ');
-  }, [setExpenses]);
-
-  // Leave handlers
-  const handleAddLeave = useCallback((leave: Omit<Leave, 'id'>) => {
-    setLeaves((prev) => [...prev, { ...leave, id: generateId() }]);
-    toast.success('ບັນທຶກການລາສຳເລັດ');
-  }, [setLeaves]);
-
-  const handleDeleteLeave = useCallback((id: string) => {
-    setLeaves((prev) => prev.filter((l) => l.id !== id));
-    toast.success('ລຶບການລາສຳເລັດ');
-  }, [setLeaves]);
-
-  // Employee handlers
-  const handleAddEmployee = useCallback((employee: Omit<Employee, 'id'>) => {
-    setEmployees((prev) => [...prev, { ...employee, id: generateId() }]);
-    toast.success('ເພີ່ມພະນັກງານສຳເລັດ');
-  }, [setEmployees]);
-
-  const handleDeleteEmployee = useCallback((id: string) => {
-    setEmployees((prev) => prev.filter((e) => e.id !== id));
-    toast.success('ລຶບພະນັກງານສຳເລັດ');
-  }, [setEmployees]);
-
-  // Data export/import
+  // Data export
   const handleExportData = useCallback(() => {
     const data = {
       storeInfo,
@@ -188,31 +119,7 @@ const Index = () => {
     a.download = `ky-skin-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('ສົ່ງອອກຂໍ້ມູນສຳເລັດ');
   }, [storeInfo, employees, attendances, incomes, expenses, leaves]);
-
-  const handleImportData = useCallback((dataStr: string) => {
-    try {
-      const data = JSON.parse(dataStr);
-      if (data.storeInfo) setStoreInfo(data.storeInfo);
-      if (data.employees) setEmployees(data.employees);
-      if (data.attendances) setAttendances(data.attendances);
-      if (data.incomes) setIncomes(data.incomes);
-      if (data.expenses) setExpenses(data.expenses);
-      if (data.leaves) setLeaves(data.leaves);
-      toast.success('ນຳເຂົ້າຂໍ້ມູນສຳເລັດ');
-    } catch (error) {
-      toast.error('ເກີດຂໍ້ຜິດພາດໃນການນຳເຂົ້າຂໍ້ມູນ');
-    }
-  }, [setStoreInfo, setEmployees, setAttendances, setIncomes, setExpenses, setLeaves]);
-
-  const handleClearAllData = useCallback(() => {
-    setAttendances([]);
-    setIncomes([]);
-    setExpenses([]);
-    setLeaves([]);
-    toast.success('ລຶບຂໍ້ມູນທັງໝົດສຳເລັດ');
-  }, [setAttendances, setIncomes, setExpenses, setLeaves]);
 
   const handleLogout = async () => {
     await signOut();
@@ -220,7 +127,9 @@ const Index = () => {
   };
 
   // Loading state
-  if (loading) {
+  const isLoading = authLoading || settingsLoading || employeesLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -240,6 +149,7 @@ const Index = () => {
         userRole={role} 
         userName={profile?.full_name}
         storeName={storeInfo.name}
+        storeLogo={storeInfo.logo}
       />
       <Navigation 
         activeTab={activeTab} 
@@ -260,8 +170,8 @@ const Index = () => {
           <IncomeTab
             employees={employees}
             incomes={incomes}
-            onAddIncome={handleAddIncome}
-            onDeleteIncome={handleDeleteIncome}
+            onAddIncome={addIncome}
+            onDeleteIncome={deleteIncome}
             storeInfo={storeInfo}
             canEdit={permissions?.canEditFinance}
           />
@@ -270,8 +180,8 @@ const Index = () => {
           <ExpenseTab
             employees={employees}
             expenses={expenses}
-            onAddExpense={handleAddExpense}
-            onDeleteExpense={handleDeleteExpense}
+            onAddExpense={addExpense}
+            onDeleteExpense={deleteExpense}
           />
         )}
         {activeTab === 'history' && (
@@ -281,8 +191,8 @@ const Index = () => {
           <LeaveTab
             employees={employees}
             leaves={leaves}
-            onAddLeave={handleAddLeave}
-            onDeleteLeave={handleDeleteLeave}
+            onAddLeave={addLeave}
+            onDeleteLeave={deleteLeave}
           />
         )}
         {activeTab === 'daily' && (
@@ -307,12 +217,9 @@ const Index = () => {
             attendances={attendances}
             leaves={leaves}
             employees={employees}
-            autoSyncSpreadsheetId={autoSyncSpreadsheetId}
-            autoSyncEnabled={autoSyncEnabled}
-            onAutoSyncSettingsChange={(spreadsheetId, enabled) => {
-              setAutoSyncSpreadsheetId(spreadsheetId);
-              setAutoSyncEnabled(enabled);
-            }}
+            autoSyncSpreadsheetId={storeSettings.googleSpreadsheetId}
+            autoSyncEnabled={storeSettings.autoSyncEnabled}
+            onAutoSyncSettingsChange={handleAutoSyncSettingsChange}
           />
         )}
         {activeTab === 'users' && <UserManagementTab />}
@@ -320,12 +227,10 @@ const Index = () => {
           <SettingsTab
             storeInfo={storeInfo}
             employees={employees}
-            onUpdateStoreInfo={setStoreInfo}
-            onAddEmployee={handleAddEmployee}
-            onDeleteEmployee={handleDeleteEmployee}
+            onUpdateStoreInfo={handleUpdateStoreInfo}
+            onAddEmployee={addEmployee}
+            onDeleteEmployee={deleteEmployee}
             onExportData={handleExportData}
-            onImportData={handleImportData}
-            onClearAllData={handleClearAllData}
           />
         )}
       </main>

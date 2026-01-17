@@ -1,4 +1,4 @@
-import { Store, LogOut, Crown, Briefcase, User, Settings } from 'lucide-react';
+import { Store, LogOut, Crown, Briefcase, User } from 'lucide-react';
 import { AppRole } from '@/types';
 
 interface HeaderProps {
@@ -6,9 +6,10 @@ interface HeaderProps {
   userRole?: AppRole | null;
   userName?: string;
   storeName?: string;
+  storeLogo?: string;
 }
 
-export function Header({ onLogout, userRole, userName, storeName = 'AEK SHOP' }: HeaderProps) {
+export function Header({ onLogout, userRole, userName, storeName = 'AEK SHOP', storeLogo }: HeaderProps) {
   const getRoleIcon = (role?: AppRole | null) => {
     switch (role) {
       case 'admin':
@@ -50,9 +51,17 @@ export function Header({ onLogout, userRole, userName, storeName = 'AEK SHOP' }:
           <div className="flex items-center gap-3 group">
             <div className="relative">
               <div className="absolute inset-0 rounded-xl bg-primary/20 blur-lg group-hover:blur-xl transition-all" />
-              <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-success flex items-center justify-center">
-                <Store className="w-6 h-6 text-primary-foreground" />
-              </div>
+              {storeLogo ? (
+                <img 
+                  src={storeLogo} 
+                  alt={storeName}
+                  className="relative w-11 h-11 rounded-xl object-cover border-2 border-primary/30"
+                />
+              ) : (
+                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-success flex items-center justify-center">
+                  <Store className="w-6 h-6 text-primary-foreground" />
+                </div>
+              )}
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
