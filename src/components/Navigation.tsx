@@ -9,7 +9,11 @@ import {
   Settings,
   FileText,
   Users,
-  Download
+  Download,
+  ShoppingCart,
+  Package,
+  Warehouse,
+  Receipt
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -20,6 +24,10 @@ interface NavigationProps {
 }
 
 const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPermission?: keyof typeof ROLE_PERMISSIONS['admin'] }[] = [
+  { id: 'pos', label: 'ຂາຍສິນຄ້າ', icon: ShoppingCart },
+  { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
+  { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
+  { id: 'salesreport', label: 'ລາຍງານຂາຍ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock, requiredPermission: 'canViewAttendance' },
   { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp, requiredPermission: 'canViewFinance' },
   { id: 'expense', label: 'ລາຍຈ່າຍ', icon: TrendingDown, requiredPermission: 'canViewFinance' },
