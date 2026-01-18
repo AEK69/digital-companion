@@ -18,20 +18,25 @@ import {
   Banknote,
   QrCode,
   Printer,
-  Package
+  Package,
+  Camera,
+  Download
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
 import { useToast } from '@/hooks/use-toast';
-import { Employee } from '@/types';
+import { Employee, StoreInfo } from '@/types';
+import { BarcodeScanner } from './BarcodeScanner';
+import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
 
 interface POSTabProps {
   employees: Employee[];
+  storeInfo: StoreInfo;
 }
 
-export function POSTab({ employees }: POSTabProps) {
-  const { products, getProductByBarcode } = useProducts();
-  const { createSale } = useSales();
+export function POSTab({ employees, storeInfo }: POSTabProps) {
+  const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
+  const { createSale, getSaleItems } = useSales();
   const { toast } = useToast();
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -44,37 +49,92 @@ export function POSTab({ employees }: POSTabProps) {
   const [receivedAmount, setReceivedAmount] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [processing, setProcessing] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const barcodeBufferRef = useRef<string>('');
+  const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Focus on barcode input
   useEffect(() => {
-    if (barcodeInputRef.current) {
+    if (barcodeInputRef.current && !showCheckout && !showCameraScanner) {
       barcodeInputRef.current.focus();
     }
+  }, [showCheckout, showCameraScanner]);
+
+  // Listen for barcode scanner input (keyboard events)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if in input field other than barcode input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' && target !== barcodeInputRef.current) {
+        return;
+      }
+
+      // Clear previous timeout
+      if (barcodeTimeoutRef.current) {
+        clearTimeout(barcodeTimeoutRef.current);
+      }
+
+      // If Enter is pressed, process the barcode
+      if (e.key === 'Enter' && barcodeBufferRef.current.length > 0) {
+        e.preventDefault();
+        const barcode = barcodeBufferRef.current.trim();
+        barcodeBufferRef.current = '';
+        
+        if (barcode.length >= 3) {
+          handleBarcodeDetected(barcode);
+        }
+        return;
+      }
+
+      // Add character to buffer (only printable characters)
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        barcodeBufferRef.current += e.key;
+        
+        // Auto-clear buffer after 100ms of no input (barcode scanners type fast)
+        barcodeTimeoutRef.current = setTimeout(() => {
+          barcodeBufferRef.current = '';
+        }, 100);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (barcodeTimeoutRef.current) {
+        clearTimeout(barcodeTimeoutRef.current);
+      }
+    };
   }, []);
 
-  // Handle barcode scan
-  const handleBarcodeSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!barcodeInput.trim()) return;
-
-    const product = getProductByBarcode(barcodeInput.trim());
+  // Handle barcode detected (from scanner or camera)
+  const handleBarcodeDetected = useCallback((barcode: string) => {
+    const product = getProductByBarcode(barcode);
     if (product) {
       addToCart(product);
       toast({
         title: 'ເພີ່ມສິນຄ້າແລ້ວ',
-        description: product.name,
+        description: `${product.name} - ₭${product.selling_price.toLocaleString()}`,
       });
     } else {
       toast({
         title: 'ບໍ່ພົບສິນຄ້າ',
-        description: `ບາໂຄ້ດ: ${barcodeInput}`,
+        description: `ບາໂຄ້ດ: ${barcode}`,
         variant: 'destructive',
       });
     }
     setBarcodeInput('');
-  }, [barcodeInput, getProductByBarcode, toast]);
+  }, [getProductByBarcode, toast]);
+
+  // Handle barcode form submit
+  const handleBarcodeSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim()) return;
+    handleBarcodeDetected(barcodeInput.trim());
+  }, [barcodeInput, handleBarcodeDetected]);
 
   const addToCart = useCallback((product: Product) => {
     if (product.stock_quantity <= 0) {
@@ -163,13 +223,59 @@ export function POSTab({ employees }: POSTabProps) {
       );
 
       if (sale) {
+        // Get sale items for receipt
+        const saleItems = await getSaleItems(sale.id);
+        const selectedEmp = employees.find(e => e.id === selectedEmployee);
+        
+        // Store last sale for receipt printing
+        setLastSale({ sale, items: saleItems || [] });
+        
+        // Auto-print receipt
+        try {
+          await printReceipt({
+            sale,
+            items: saleItems || [],
+            employee: selectedEmp,
+            storeInfo,
+            receivedAmount: paymentMethod === 'cash' ? receivedAmount : undefined,
+            changeAmount: paymentMethod === 'cash' ? change : undefined,
+          });
+        } catch (printError) {
+          console.error('Print error:', printError);
+          // Show receipt dialog if print fails
+          setShowReceiptDialog(true);
+        }
+        
         clearCart();
         setShowCheckout(false);
-        // TODO: Print receipt
+        refetchProducts(); // Refresh stock
       }
     } finally {
       setProcessing(false);
     }
+  };
+
+  // Handle receipt actions
+  const handlePrintReceipt = async () => {
+    if (!lastSale) return;
+    const selectedEmp = employees.find(e => e.id === lastSale.sale.employee_id);
+    await printReceipt({
+      sale: lastSale.sale,
+      items: lastSale.items,
+      employee: selectedEmp,
+      storeInfo,
+    });
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!lastSale) return;
+    const selectedEmp = employees.find(e => e.id === lastSale.sale.employee_id);
+    downloadReceipt({
+      sale: lastSale.sale,
+      items: lastSale.items,
+      employee: selectedEmp,
+      storeInfo,
+    });
   };
 
   // Filter products
@@ -201,13 +307,27 @@ export function POSTab({ employees }: POSTabProps) {
                   className="pl-10"
                 />
               </div>
-              <Button type="submit">
+              <Button type="submit" variant="secondary">
                 <Search className="w-4 h-4 mr-2" />
                 ຄົ້ນຫາ
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setShowCameraScanner(true)}>
+                <Camera className="w-4 h-4 mr-2" />
+                ສະແກນກ້ອງ
               </Button>
             </form>
           </CardContent>
         </Card>
+
+        {/* Camera Scanner */}
+        <BarcodeScanner
+          isOpen={showCameraScanner}
+          onClose={() => setShowCameraScanner(false)}
+          onScan={(barcode) => {
+            handleBarcodeDetected(barcode);
+            setShowCameraScanner(false);
+          }}
+        />
 
         {/* Search & Filter */}
         <Card>
@@ -466,6 +586,36 @@ export function POSTab({ employees }: POSTabProps) {
               {processing ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນ & ພິມໃບບິນ'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>ໃບບິນພ້ອມແລ້ວ</DialogTitle>
+          </DialogHeader>
+          
+          <div className="text-center py-4">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mx-auto mb-4 flex items-center justify-center">
+              <Printer className="w-8 h-8 text-green-600" />
+            </div>
+            <p className="text-muted-foreground">ການຂາຍສຳເລັດແລ້ວ</p>
+            {lastSale && (
+              <p className="font-bold text-lg mt-2">{lastSale.sale.sale_number}</p>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={handleDownloadReceipt}>
+              <Download className="w-4 h-4 mr-2" />
+              ດາວໂຫລດ
+            </Button>
+            <Button className="flex-1" onClick={handlePrintReceipt}>
+              <Printer className="w-4 h-4 mr-2" />
+              ພິມໃບບິນ
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
