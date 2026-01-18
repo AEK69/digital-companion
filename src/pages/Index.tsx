@@ -162,7 +162,7 @@ const Index = () => {
       />
 
       <main className="container mx-auto px-4 py-6">
-        {activeTab === 'pos' && <POSTab employees={employees} />}
+        {activeTab === 'pos' && <POSTab employees={employees} storeInfo={storeInfo} />}
         {activeTab === 'products' && <ProductsManagementTab />}
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'salesreport' && <SalesReportTab />}
