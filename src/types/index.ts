@@ -53,7 +53,7 @@ export interface StoreInfo {
   phone?: string;
 }
 
-export type TabType = 'attendance' | 'income' | 'expense' | 'history' | 'leave' | 'daily' | 'summary' | 'settings' | 'reports' | 'users' | 'export';
+export type TabType = 'attendance' | 'income' | 'expense' | 'history' | 'leave' | 'daily' | 'summary' | 'settings' | 'reports' | 'users' | 'export' | 'pos' | 'products' | 'inventory' | 'salesreport';
 
 // Auth & Roles
 export type AppRole = 'admin' | 'finance' | 'staff';

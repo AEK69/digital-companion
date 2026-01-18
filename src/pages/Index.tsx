@@ -14,6 +14,10 @@ import { SettingsTab } from '@/components/SettingsTab';
 import { PrintReportsTab } from '@/components/PrintReportsTab';
 import { ExportDataTab } from '@/components/ExportDataTab';
 import { UserManagementTab } from '@/components/UserManagementTab';
+import { POSTab } from '@/components/pos/POSTab';
+import { ProductsManagementTab } from '@/components/pos/ProductsManagementTab';
+import { InventoryTab } from '@/components/pos/InventoryTab';
+import { SalesReportTab } from '@/components/pos/SalesReportTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAutoSync } from '@/hooks/useAutoSync';
@@ -28,7 +32,7 @@ import { TabType, StoreInfo } from '@/types';
 const Index = () => {
   const { user, role, profile, loading: authLoading, permissions, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('attendance');
+  const [activeTab, setActiveTab] = useState<TabType>('pos');
 
   // Database hooks
   const { storeSettings, loading: settingsLoading, updateSettings } = useStoreSettings();
@@ -158,6 +162,10 @@ const Index = () => {
       />
 
       <main className="container mx-auto px-4 py-6">
+        {activeTab === 'pos' && <POSTab employees={employees} />}
+        {activeTab === 'products' && <ProductsManagementTab />}
+        {activeTab === 'inventory' && <InventoryTab />}
+        {activeTab === 'salesreport' && <SalesReportTab />}
         {activeTab === 'attendance' && (
           <AttendanceTab
             employees={employees}
