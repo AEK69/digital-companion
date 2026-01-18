@@ -13,7 +13,8 @@ import {
   ShoppingCart,
   Package,
   Warehouse,
-  Receipt
+  Receipt,
+  UserCheck
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -27,6 +28,7 @@ const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPe
   { id: 'pos', label: 'ຂາຍສິນຄ້າ', icon: ShoppingCart },
   { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
   { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
+  { id: 'customers', label: 'ລູກຄ້າ', icon: UserCheck, requiredPermission: 'canViewFinance' },
   { id: 'salesreport', label: 'ລາຍງານຂາຍ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock, requiredPermission: 'canViewAttendance' },
   { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp, requiredPermission: 'canViewFinance' },

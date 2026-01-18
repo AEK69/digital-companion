@@ -70,7 +70,8 @@ export function useSales() {
     paymentMethod: string,
     discountAmount: number = 0,
     employeeId?: string,
-    note?: string
+    note?: string,
+    customerId?: string
   ) => {
     try {
       const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
@@ -85,6 +86,7 @@ export function useSales() {
         .insert([{
           sale_number: saleNumber,
           employee_id: employeeId || null,
+          customer_id: customerId || null,
           total_amount: totalAmount,
           discount_amount: discountAmount,
           final_amount: finalAmount,
