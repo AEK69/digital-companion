@@ -64,6 +64,42 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          loyalty_points: number
+          name: string
+          phone: string | null
+          total_purchases: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          loyalty_points?: number
+          name: string
+          phone?: string | null
+          total_purchases?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          loyalty_points?: number
+          name?: string
+          phone?: string | null
+          total_purchases?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           avatar: string | null
@@ -428,6 +464,7 @@ export type Database = {
       sales: {
         Row: {
           created_at: string
+          customer_id: string | null
           discount_amount: number
           employee_id: string | null
           final_amount: number
@@ -441,6 +478,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           discount_amount?: number
           employee_id?: string | null
           final_amount?: number
@@ -454,6 +492,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           discount_amount?: number
           employee_id?: string | null
           final_amount?: number
@@ -466,6 +505,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_employee_id_fkey"
             columns: ["employee_id"]

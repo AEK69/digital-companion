@@ -20,24 +20,31 @@ import {
   Printer,
   Package,
   Camera,
-  Download
+  Download,
+  User,
+  Star
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
+import { useCustomers, Customer } from '@/hooks/useCustomers';
 import { useToast } from '@/hooks/use-toast';
 import { Employee, StoreInfo } from '@/types';
 import { BarcodeScanner } from './BarcodeScanner';
+import { StockAlerts, useStockAlerts } from './StockAlerts';
 import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
 
 interface POSTabProps {
   employees: Employee[];
   storeInfo: StoreInfo;
+  onNavigateToInventory?: () => void;
 }
 
-export function POSTab({ employees, storeInfo }: POSTabProps) {
+export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabProps) {
   const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
   const { createSale, getSaleItems } = useSales();
+  const { customers, getCustomerByPhone } = useCustomers();
   const { toast } = useToast();
+  const { hasAlerts } = useStockAlerts(products);
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +55,8 @@ export function POSTab({ employees, storeInfo }: POSTabProps) {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [receivedAmount, setReceivedAmount] = useState(0);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [processing, setProcessing] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
@@ -204,6 +213,8 @@ export function POSTab({ employees, storeInfo }: POSTabProps) {
     setCart([]);
     setDiscountAmount(0);
     setReceivedAmount(0);
+    setSelectedCustomer(null);
+    setCustomerSearch('');
   }, []);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.total_price, 0);
@@ -219,7 +230,9 @@ export function POSTab({ employees, storeInfo }: POSTabProps) {
         cart,
         paymentMethod,
         discountAmount,
-        selectedEmployee || undefined
+        selectedEmployee || undefined,
+        undefined,
+        selectedCustomer?.id
       );
 
       if (sale) {
@@ -289,8 +302,22 @@ export function POSTab({ employees, storeInfo }: POSTabProps) {
     return true;
   });
 
+  // Filter customers
+  const filteredCustomers = customerSearch
+    ? customers.filter(c => 
+        c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        c.phone?.includes(customerSearch)
+      )
+    : [];
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-200px)]">
+    <div className="space-y-4">
+      {/* Stock Alerts */}
+      {hasAlerts && (
+        <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-280px)]">
       {/* Products Section */}
       <div className="lg:col-span-2 space-y-4">
         {/* Barcode Scanner Input */}
@@ -618,6 +645,7 @@ export function POSTab({ employees, storeInfo }: POSTabProps) {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
