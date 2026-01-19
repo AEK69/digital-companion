@@ -14,7 +14,8 @@ import {
   Package,
   Warehouse,
   Receipt,
-  UserCheck
+  UserCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -29,6 +30,7 @@ const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPe
   { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
   { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
   { id: 'customers', label: 'ລູກຄ້າ', icon: UserCheck, requiredPermission: 'canViewFinance' },
+  { id: 'reorder', label: 'ສັ່ງຊື້', icon: AlertTriangle, requiredPermission: 'canManageEmployees' },
   { id: 'salesreport', label: 'ລາຍງານຂາຍ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock, requiredPermission: 'canViewAttendance' },
   { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp, requiredPermission: 'canViewFinance' },

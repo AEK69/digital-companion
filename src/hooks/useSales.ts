@@ -71,11 +71,12 @@ export function useSales() {
     discountAmount: number = 0,
     employeeId?: string,
     note?: string,
-    customerId?: string
+    customerId?: string,
+    pointsDiscount: number = 0
   ) => {
     try {
       const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
-      const finalAmount = totalAmount - discountAmount;
+      const finalAmount = totalAmount - discountAmount - pointsDiscount;
 
       // Generate sale number
       const saleNumber = `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
@@ -88,11 +89,11 @@ export function useSales() {
           employee_id: employeeId || null,
           customer_id: customerId || null,
           total_amount: totalAmount,
-          discount_amount: discountAmount,
+          discount_amount: discountAmount + pointsDiscount,
           final_amount: finalAmount,
           payment_method: paymentMethod,
           status: 'completed',
-          note: note || null,
+          note: note || (pointsDiscount > 0 ? `ສ່ວນຫຼຸດຈາກຄະແນນ: ₭${pointsDiscount.toLocaleString()}` : null),
         }])
         .select()
         .single();

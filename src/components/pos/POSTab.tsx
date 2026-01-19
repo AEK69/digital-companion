@@ -42,7 +42,7 @@ interface POSTabProps {
 export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabProps) {
   const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
   const { createSale, getSaleItems } = useSales();
-  const { customers, getCustomerByPhone } = useCustomers();
+  const { customers, getCustomerByPhone, redeemPoints } = useCustomers();
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
   
@@ -57,6 +57,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
+  const [usePoints, setUsePoints] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
@@ -65,6 +66,64 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
   const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const addToCart = useCallback((product: Product) => {
+    if (product.stock_quantity <= 0) {
+      toast({
+        title: 'ສິນຄ້າໝົດສະຕ໊ອກ',
+        description: product.name,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCart(prev => {
+      const existing = prev.find(item => item.product_id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock_quantity) {
+          toast({
+            title: 'ເກີນຈຳນວນສະຕ໊ອກ',
+            description: `ມີສິນຄ້າໃນສະຕ໊ອກ ${product.stock_quantity} ຊິ້ນ`,
+            variant: 'destructive',
+          });
+          return prev;
+        }
+        return prev.map(item =>
+          item.product_id === product.id
+            ? { ...item, quantity: item.quantity + 1, total_price: (item.quantity + 1) * item.unit_price }
+            : item
+        );
+      }
+      return [...prev, {
+        product_id: product.id,
+        product_name: product.name,
+        barcode: product.barcode,
+        quantity: 1,
+        unit_price: product.selling_price,
+        total_price: product.selling_price,
+        stock_quantity: product.stock_quantity,
+      }];
+    });
+  }, [toast]);
+
+  // Handle barcode detected (from scanner or camera)
+  const handleBarcodeDetected = useCallback((barcode: string) => {
+    const product = getProductByBarcode(barcode);
+    if (product) {
+      addToCart(product);
+      toast({
+        title: 'ເພີ່ມສິນຄ້າແລ້ວ',
+        description: `${product.name} - ₭${product.selling_price.toLocaleString()}`,
+      });
+    } else {
+      toast({
+        title: 'ບໍ່ພົບສິນຄ້າ',
+        description: `ບາໂຄ້ດ: ${barcode}`,
+        variant: 'destructive',
+      });
+    }
+    setBarcodeInput('');
+  }, [getProductByBarcode, addToCart, toast]);
 
   // Focus on barcode input
   useEffect(() => {
@@ -117,26 +176,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         clearTimeout(barcodeTimeoutRef.current);
       }
     };
-  }, []);
-
-  // Handle barcode detected (from scanner or camera)
-  const handleBarcodeDetected = useCallback((barcode: string) => {
-    const product = getProductByBarcode(barcode);
-    if (product) {
-      addToCart(product);
-      toast({
-        title: 'ເພີ່ມສິນຄ້າແລ້ວ',
-        description: `${product.name} - ₭${product.selling_price.toLocaleString()}`,
-      });
-    } else {
-      toast({
-        title: 'ບໍ່ພົບສິນຄ້າ',
-        description: `ບາໂຄ້ດ: ${barcode}`,
-        variant: 'destructive',
-      });
-    }
-    setBarcodeInput('');
-  }, [getProductByBarcode, toast]);
+  }, [handleBarcodeDetected]);
 
   // Handle barcode form submit
   const handleBarcodeSubmit = useCallback((e: React.FormEvent) => {
@@ -144,45 +184,6 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
     if (!barcodeInput.trim()) return;
     handleBarcodeDetected(barcodeInput.trim());
   }, [barcodeInput, handleBarcodeDetected]);
-
-  const addToCart = useCallback((product: Product) => {
-    if (product.stock_quantity <= 0) {
-      toast({
-        title: 'ສິນຄ້າໝົດສະຕ໊ອກ',
-        description: product.name,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setCart(prev => {
-      const existing = prev.find(item => item.product_id === product.id);
-      if (existing) {
-        if (existing.quantity >= product.stock_quantity) {
-          toast({
-            title: 'ເກີນຈຳນວນສະຕ໊ອກ',
-            description: `ມີສິນຄ້າໃນສະຕ໊ອກ ${product.stock_quantity} ຊິ້ນ`,
-            variant: 'destructive',
-          });
-          return prev;
-        }
-        return prev.map(item =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1, total_price: (item.quantity + 1) * item.unit_price }
-            : item
-        );
-      }
-      return [...prev, {
-        product_id: product.id,
-        product_name: product.name,
-        barcode: product.barcode,
-        quantity: 1,
-        unit_price: product.selling_price,
-        total_price: product.selling_price,
-        stock_quantity: product.stock_quantity,
-      }];
-    });
-  }, [toast]);
 
   const updateCartItemQuantity = useCallback((productId: string, delta: number) => {
     setCart(prev => {
@@ -215,27 +216,44 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
     setReceivedAmount(0);
     setSelectedCustomer(null);
     setCustomerSearch('');
+    setUsePoints(false);
   }, []);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.total_price, 0);
   const finalTotal = cartTotal - discountAmount;
-  const change = receivedAmount - finalTotal;
+  
+  // Calculate points discount
+  const pointsDiscount = usePoints && selectedCustomer 
+    ? Math.min(selectedCustomer.loyalty_points * 100, finalTotal)
+    : 0;
+  const actualFinalTotal = finalTotal - pointsDiscount;
+  const actualChange = receivedAmount - actualFinalTotal;
+  const change = actualChange;
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
     setProcessing(true);
     try {
+      // Calculate points to redeem
+      const pointsToRedeem = pointsDiscount > 0 ? Math.ceil(pointsDiscount / 100) : 0;
+      
       const sale = await createSale(
         cart,
         paymentMethod,
         discountAmount,
         selectedEmployee || undefined,
         undefined,
-        selectedCustomer?.id
+        selectedCustomer?.id,
+        pointsDiscount
       );
 
       if (sale) {
+        // Redeem points if used
+        if (pointsToRedeem > 0 && selectedCustomer) {
+          await redeemPoints(selectedCustomer.id, pointsToRedeem);
+        }
+        
         // Get sale items for receipt
         const saleItems = await getSaleItems(sale.id);
         const selectedEmp = employees.find(e => e.id === selectedEmployee);
@@ -251,7 +269,9 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             employee: selectedEmp,
             storeInfo,
             receivedAmount: paymentMethod === 'cash' ? receivedAmount : undefined,
-            changeAmount: paymentMethod === 'cash' ? change : undefined,
+            changeAmount: paymentMethod === 'cash' ? actualChange : undefined,
+            customer: selectedCustomer || undefined,
+            pointsDiscount: pointsDiscount > 0 ? pointsDiscount : undefined,
           });
         } catch (printError) {
           console.error('Print error:', printError);
@@ -516,15 +536,105 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
 
       {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>ຊຳລະເງິນ</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
+            {/* Customer Selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                ລູກຄ້າ (ເພື່ອສະສົມຄະແນນ)
+              </Label>
+              <div className="relative">
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    if (!e.target.value) setSelectedCustomer(null);
+                  }}
+                  placeholder="ຄົ້ນຫາດ້ວຍຊື່ ຫຼື ເບີໂທ..."
+                />
+                {customerSearch && filteredCustomers.length > 0 && !selectedCustomer && (
+                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    {filteredCustomers.slice(0, 5).map(customer => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        className="w-full px-3 py-2 text-left hover:bg-muted flex justify-between items-center"
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setCustomerSearch(customer.name);
+                        }}
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{customer.name}</p>
+                          <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-yellow-600">
+                          <Star className="w-3 h-3 fill-current" />
+                          {customer.loyalty_points}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedCustomer && (
+                <div className="p-3 bg-secondary rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{selectedCustomer.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedCustomer.phone}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1 text-yellow-600">
+                        <Star className="w-4 h-4 fill-current" />
+                        <span className="font-bold">{selectedCustomer.loyalty_points}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">ຄະແນນ</p>
+                    </div>
+                  </div>
+                  {selectedCustomer.loyalty_points > 0 && (
+                    <div className="mt-2 pt-2 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="use-points"
+                            checked={usePoints}
+                            onChange={(e) => setUsePoints(e.target.checked)}
+                            className="rounded border-primary"
+                          />
+                          <Label htmlFor="use-points" className="text-sm cursor-pointer">
+                            ໃຊ້ຄະແນນເປັນສ່ວນຫຼຸດ
+                          </Label>
+                        </div>
+                        {usePoints && (
+                          <span className="text-sm text-green-600 font-medium">
+                            -₭{Math.min(selectedCustomer.loyalty_points * 100, cartTotal - discountAmount).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        (1 ຄະແນນ = ₭100 ສ່ວນຫຼຸດ)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="text-center p-4 bg-primary/10 rounded-lg">
               <p className="text-sm text-muted-foreground">ຍອດຮວມສຸດທິ</p>
-              <p className="text-3xl font-bold text-primary">₭{finalTotal.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-primary">₭{actualFinalTotal.toLocaleString()}</p>
+              {pointsDiscount > 0 && (
+                <p className="text-sm text-green-600">
+                  (ສ່ວນຫຼຸດຈາກຄະແນນ: ₭{pointsDiscount.toLocaleString()})
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -545,6 +655,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               <Label>ວິທີຊຳລະ</Label>
               <div className="grid grid-cols-3 gap-2">
                 <Button
+                  type="button"
                   variant={paymentMethod === 'cash' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('cash')}
                   className="flex flex-col h-auto py-3"
@@ -553,6 +664,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                   <span className="text-xs">ເງິນສົດ</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('transfer')}
                   className="flex flex-col h-auto py-3"
@@ -561,6 +673,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                   <span className="text-xs">ໂອນ</span>
                 </Button>
                 <Button
+                  type="button"
                   variant={paymentMethod === 'qr' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('qr')}
                   className="flex flex-col h-auto py-3"
@@ -593,10 +706,10 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               </div>
             </div>
 
-            {receivedAmount >= finalTotal && (
+            {receivedAmount >= actualFinalTotal && (
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground">ເງິນທອນ</p>
-                <p className="text-2xl font-bold text-green-600">₭{change.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">₭{actualChange.toLocaleString()}</p>
               </div>
             )}
           </div>
@@ -607,7 +720,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             </Button>
             <Button 
               onClick={handleCheckout} 
-              disabled={processing || (paymentMethod === 'cash' && receivedAmount < finalTotal)}
+              disabled={processing || (paymentMethod === 'cash' && receivedAmount < actualFinalTotal)}
             >
               <Printer className="w-4 h-4 mr-2" />
               {processing ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນ & ພິມໃບບິນ'}

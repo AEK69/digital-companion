@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { CartItem, Sale, SaleItem } from '@/hooks/useSales';
 import { StoreInfo, Employee } from '@/types';
+import { Customer } from '@/hooks/useCustomers';
 
 interface ReceiptData {
   sale: Sale;
@@ -9,6 +10,8 @@ interface ReceiptData {
   storeInfo: StoreInfo;
   receivedAmount?: number;
   changeAmount?: number;
+  customer?: Customer;
+  pointsDiscount?: number;
 }
 
 // Format number with comma
@@ -32,7 +35,7 @@ const formatDateTime = (dateStr: string) => {
 
 // Generate POS Receipt PDF (Thermal printer format - 80mm or 58mm)
 export const generatePOSReceiptPDF = (data: ReceiptData, paperWidth: 80 | 58 = 80) => {
-  const { sale, items, employee, storeInfo, receivedAmount, changeAmount } = data;
+  const { sale, items, employee, storeInfo, receivedAmount, changeAmount, customer, pointsDiscount } = data;
   
   // Calculate receipt height based on items
   const baseHeight = 120;
@@ -98,6 +101,10 @@ export const generatePOSReceiptPDF = (data: ReceiptData, paperWidth: 80 | 58 = 8
   y += 3.5;
   doc.text(`ພະນັກງານ: ${employee?.name || '-'}`, margin, y);
   y += 3.5;
+  if (customer) {
+    doc.text(`ລູກຄ້າ: ${customer.name}`, margin, y);
+    y += 3.5;
+  }
   doc.text(`ຊຳລະ: ${getPaymentMethodLabel(sale.payment_method)}`, margin, y);
 
   // === DIVIDER ===
@@ -140,9 +147,21 @@ export const generatePOSReceiptPDF = (data: ReceiptData, paperWidth: 80 | 58 = 8
   y += 4;
 
   if (sale.discount_amount > 0) {
-    doc.text('ສ່ວນຫຼຸດ:', margin, y);
-    doc.text(`-₭${formatNumber(sale.discount_amount)}`, pageWidth - margin, y, { align: 'right' });
-    y += 4;
+    if (pointsDiscount && pointsDiscount > 0) {
+      const regularDiscount = sale.discount_amount - pointsDiscount;
+      if (regularDiscount > 0) {
+        doc.text('ສ່ວນຫຼຸດ:', margin, y);
+        doc.text(`-₭${formatNumber(regularDiscount)}`, pageWidth - margin, y, { align: 'right' });
+        y += 4;
+      }
+      doc.text('ສ່ວນຫຼຸດຈາກຄະແນນ:', margin, y);
+      doc.text(`-₭${formatNumber(pointsDiscount)}`, pageWidth - margin, y, { align: 'right' });
+      y += 4;
+    } else {
+      doc.text('ສ່ວນຫຼຸດ:', margin, y);
+      doc.text(`-₭${formatNumber(sale.discount_amount)}`, pageWidth - margin, y, { align: 'right' });
+      y += 4;
+    }
   }
 
   doc.setFont('helvetica', 'bold');
