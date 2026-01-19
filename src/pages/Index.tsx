@@ -19,6 +19,8 @@ import { ProductsManagementTab } from '@/components/pos/ProductsManagementTab';
 import { InventoryTab } from '@/components/pos/InventoryTab';
 import { SalesReportTab } from '@/components/pos/SalesReportTab';
 import { CustomersTab } from '@/components/pos/CustomersTab';
+import { ReorderReportTab } from '@/components/pos/ReorderReportTab';
+import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAutoSync } from '@/hooks/useAutoSync';
@@ -42,6 +44,7 @@ const Index = () => {
   const { expenses, addExpense, deleteExpense } = useExpenses();
   const { attendances, clockIn, clockOut } = useAttendances(employees);
   const { leaves, addLeave, deleteLeave } = useLeaves();
+  const { products } = useProducts();
 
   // Convert store settings to StoreInfo format
   const storeInfo: StoreInfo = {
@@ -168,6 +171,7 @@ const Index = () => {
         {activeTab === 'inventory' && <InventoryTab />}
         {activeTab === 'salesreport' && <SalesReportTab />}
         {activeTab === 'customers' && <CustomersTab />}
+        {activeTab === 'reorder' && <ReorderReportTab products={products} />}
         {activeTab === 'attendance' && (
           <AttendanceTab
             employees={employees}
