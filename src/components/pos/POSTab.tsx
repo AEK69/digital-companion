@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { 
   ShoppingCart, 
   Trash2, 
@@ -22,7 +23,8 @@ import {
   Camera,
   Download,
   User,
-  Star
+  Star,
+  Check
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
@@ -32,6 +34,7 @@ import { Employee, StoreInfo } from '@/types';
 import { BarcodeScanner } from './BarcodeScanner';
 import { StockAlerts, useStockAlerts } from './StockAlerts';
 import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
+import { useAuth } from '@/hooks/useAuth';
 
 interface POSTabProps {
   employees: Employee[];
@@ -39,12 +42,19 @@ interface POSTabProps {
   onNavigateToInventory?: () => void;
 }
 
+// Quick cash denomination buttons (Lao Kip)
+const QUICK_CASH_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000, 100000];
+
+// BCEL One Pay QR Code
+const BCEL_QR_CODE = '00020101021115312738041800520446mch19B73F61B9E038570016A00526628466257701082771041802030020314mch19B73F61B9E5204569153034185802LA5916AKAPHON XAYYABED6002VT62120208586625406304C735';
+
 export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabProps) {
   const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
   const { createSale, getSaleItems } = useSales();
   const { customers, getCustomerByPhone, redeemPoints } = useCustomers();
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
+  const { profile, user } = useAuth();
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,10 +72,25 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
   const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-fill employee based on logged-in user
+  useEffect(() => {
+    if (user && profile && employees.length > 0 && !selectedEmployee) {
+      // Find employee that matches the current user
+      const matchingEmployee = employees.find(emp => 
+        emp.name === profile.full_name || 
+        emp.name.toLowerCase().includes(profile.full_name.toLowerCase())
+      );
+      if (matchingEmployee) {
+        setSelectedEmployee(matchingEmployee.id);
+      }
+    }
+  }, [user, profile, employees, selectedEmployee]);
 
   const addToCart = useCallback((product: Product) => {
     if (product.stock_quantity <= 0) {
@@ -230,6 +255,16 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const actualChange = receivedAmount - actualFinalTotal;
   const change = actualChange;
 
+  // Handle quick cash amount
+  const handleQuickCash = (amount: number) => {
+    setReceivedAmount(prev => prev + amount);
+  };
+
+  // Set exact amount
+  const handleExactAmount = () => {
+    setReceivedAmount(actualFinalTotal);
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
@@ -261,23 +296,30 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         // Store last sale for receipt printing
         setLastSale({ sale, items: saleItems || [] });
         
-        // Auto-print receipt
-        try {
-          await printReceipt({
-            sale,
-            items: saleItems || [],
-            employee: selectedEmp,
-            storeInfo,
-            receivedAmount: paymentMethod === 'cash' ? receivedAmount : undefined,
-            changeAmount: paymentMethod === 'cash' ? actualChange : undefined,
-            customer: selectedCustomer || undefined,
-            pointsDiscount: pointsDiscount > 0 ? pointsDiscount : undefined,
-          });
-        } catch (printError) {
-          console.error('Print error:', printError);
-          // Show receipt dialog if print fails
-          setShowReceiptDialog(true);
+        // Print receipt if enabled
+        if (shouldPrintReceipt) {
+          try {
+            await printReceipt({
+              sale,
+              items: saleItems || [],
+              employee: selectedEmp,
+              storeInfo,
+              receivedAmount: paymentMethod === 'cash' ? receivedAmount : undefined,
+              changeAmount: paymentMethod === 'cash' ? actualChange : undefined,
+              customer: selectedCustomer || undefined,
+              pointsDiscount: pointsDiscount > 0 ? pointsDiscount : undefined,
+            });
+          } catch (printError) {
+            console.error('Print error:', printError);
+            // Show receipt dialog if print fails
+            setShowReceiptDialog(true);
+          }
         }
+        
+        toast({
+          title: 'ຂາຍສຳເລັດ!',
+          description: `ເລກທີ່ໃບບິນ: ${sale.sale_number}`,
+        });
         
         clearCart();
         setShowCheckout(false);
@@ -536,7 +578,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
 
       {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>ຊຳລະເງິນ</DialogTitle>
           </DialogHeader>
@@ -684,6 +726,22 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               </div>
             </div>
 
+            {/* QR Code Display for QR Payment */}
+            {paymentMethod === 'qr' && (
+              <div className="p-4 bg-secondary rounded-lg text-center">
+                <p className="font-medium mb-3">ສະແກນ QR ເພື່ອຊຳລະເງິນ</p>
+                <div className="bg-white p-4 rounded-lg inline-block">
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(BCEL_QR_CODE)}`}
+                    alt="BCEL QR Code"
+                    className="w-48 h-48 mx-auto"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">BCEL One Pay</p>
+                <p className="text-lg font-bold text-primary mt-1">₭{actualFinalTotal.toLocaleString()}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>ສ່ວນຫຼຸດ</Label>
@@ -706,12 +764,64 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               </div>
             </div>
 
-            {receivedAmount >= actualFinalTotal && (
+            {/* Quick Cash Buttons */}
+            {paymentMethod === 'cash' && (
+              <div className="space-y-2">
+                <Label>ກົດເລືອກເງິນດ່ວນ (₭)</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExactAmount}
+                    className="text-green-600 border-green-600"
+                  >
+                    <Check className="w-3 h-3 mr-1" />
+                    ພໍດີ
+                  </Button>
+                  {QUICK_CASH_AMOUNTS.map(amount => (
+                    <Button
+                      key={amount}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleQuickCash(amount)}
+                    >
+                      +{amount.toLocaleString()}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setReceivedAmount(0)}
+                  className="text-muted-foreground"
+                >
+                  ລ້າງ
+                </Button>
+              </div>
+            )}
+
+            {receivedAmount >= actualFinalTotal && paymentMethod === 'cash' && (
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground">ເງິນທອນ</p>
                 <p className="text-2xl font-bold text-green-600">₭{actualChange.toLocaleString()}</p>
               </div>
             )}
+
+            {/* Print Receipt Option */}
+            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+              <Label htmlFor="print-receipt" className="flex items-center gap-2 cursor-pointer">
+                <Printer className="w-4 h-4" />
+                ພິມໃບບິນຫຼັງຂາຍ
+              </Label>
+              <Switch
+                id="print-receipt"
+                checked={shouldPrintReceipt}
+                onCheckedChange={setShouldPrintReceipt}
+              />
+            </div>
           </div>
 
           <DialogFooter className="flex gap-2">
@@ -722,8 +832,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               onClick={handleCheckout} 
               disabled={processing || (paymentMethod === 'cash' && receivedAmount < actualFinalTotal)}
             >
-              <Printer className="w-4 h-4 mr-2" />
-              {processing ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນ & ພິມໃບບິນ'}
+              {shouldPrintReceipt && <Printer className="w-4 h-4 mr-2" />}
+              {processing ? 'ກຳລັງບັນທຶກ...' : (shouldPrintReceipt ? 'ຢືນຢັນ & ພິມໃບບິນ' : 'ຢືນຢັນການຂາຍ')}
             </Button>
           </DialogFooter>
         </DialogContent>
