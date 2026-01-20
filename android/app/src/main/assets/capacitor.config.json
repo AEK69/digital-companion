@@ -1,0 +1,8 @@
+{
+	"appId": "aek.shop",
+	"appName": "Digital Companion",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	}
+}
