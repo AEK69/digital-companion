@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -25,10 +26,14 @@ import {
   Package,
   Upload,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Printer,
+  Barcode
 } from 'lucide-react';
 import { Product, ProductCategory, useProducts } from '@/hooks/useProducts';
 import { useToast } from '@/hooks/use-toast';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
+import { printBarcodeLabels, printMultipleBarcodes } from '@/utils/barcodePrinter';
 import * as XLSX from 'xlsx';
 
 interface ProductFormData {
@@ -55,21 +60,26 @@ const initialFormData: ProductFormData = {
   selling_price: 0,
   stock_quantity: 0,
   min_stock_level: 5,
-  unit: 'ชิ้น',
+  unit: 'ຊິ້ນ',
   is_active: true,
 };
 
 export function ProductsManagementTab() {
   const { products, categories, addProduct, updateProduct, deleteProduct, addCategory, importProducts } = useProducts();
   const { toast } = useToast();
+  const { storeSettings } = useStoreSettings();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [barcodeQuantity, setBarcodeQuantity] = useState(1);
+  const [singleBarcodeProduct, setSingleBarcodeProduct] = useState<Product | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +144,70 @@ export function ProductsManagementTab() {
     setShowAddCategory(false);
   };
 
+  // Print single product barcode
+  const handlePrintSingleBarcode = (product: Product) => {
+    setSingleBarcodeProduct(product);
+    setBarcodeQuantity(1);
+    setShowBarcodeDialog(true);
+  };
+
+  // Print selected products barcodes
+  const handlePrintSelectedBarcodes = () => {
+    const selectedProductsList = products.filter(p => selectedProducts.includes(p.id));
+    if (selectedProductsList.length === 0) {
+      toast({
+        title: 'ກະລຸນາເລືອກສິນຄ້າ',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    printMultipleBarcodes(selectedProductsList, barcodeQuantity, { name: storeSettings.name });
+    toast({
+      title: 'ກຳລັງພິມບາໂຄ້ດ',
+      description: `${selectedProductsList.length} ສິນຄ້າ`,
+    });
+    setSelectedProducts([]);
+  };
+
+  // Confirm print single barcode
+  const handleConfirmPrintBarcode = () => {
+    if (!singleBarcodeProduct) return;
+    
+    printBarcodeLabels({
+      product: singleBarcodeProduct,
+      quantity: barcodeQuantity,
+      storeInfo: { name: storeSettings.name },
+    });
+    
+    toast({
+      title: 'ກຳລັງພິມບາໂຄ້ດ',
+      description: `${singleBarcodeProduct.name} x ${barcodeQuantity}`,
+    });
+    
+    setShowBarcodeDialog(false);
+    setSingleBarcodeProduct(null);
+    setBarcodeQuantity(1);
+  };
+
+  // Toggle product selection
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  // Select all products
+  const toggleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.id));
+    }
+  };
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -155,7 +229,7 @@ export function ProductsManagementTab() {
           selling_price: Number(row['ລາຄາຂາຍ'] || row['selling_price'] || 0),
           stock_quantity: Number(row['ຈຳນວນ'] || row['stock_quantity'] || 0),
           min_stock_level: Number(row['ຂັ້ນຕ່ຳ'] || row['min_stock_level'] || 5),
-          unit: String(row['ໜ່ວຍ'] || row['unit'] || 'ชิ้น'),
+          unit: String(row['ໜ່ວຍ'] || row['unit'] || 'ຊິ້ນ'),
         }));
 
         await importProducts(productsData);
@@ -231,7 +305,13 @@ export function ProductsManagementTab() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {selectedProducts.length > 0 && (
+                <Button variant="secondary" onClick={handlePrintSelectedBarcodes}>
+                  <Barcode className="w-4 h-4 mr-2" />
+                  ພິມບາໂຄ້ດ ({selectedProducts.length})
+                </Button>
+              )}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -269,6 +349,12 @@ export function ProductsManagementTab() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox 
+                      checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>ຮູບ</TableHead>
                   <TableHead>ບາໂຄ້ດ</TableHead>
                   <TableHead>ຊື່ສິນຄ້າ</TableHead>
@@ -282,6 +368,12 @@ export function ProductsManagementTab() {
               <TableBody>
                 {filteredProducts.map(product => (
                   <TableRow key={product.id}>
+                    <TableCell>
+                      <Checkbox 
+                        checked={selectedProducts.includes(product.id)}
+                        onCheckedChange={() => toggleProductSelection(product.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.name} className="w-10 h-10 object-cover rounded" />
@@ -307,6 +399,14 @@ export function ProductsManagementTab() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handlePrintSingleBarcode(product)}
+                          title="ພິມບາໂຄ້ດ"
+                        >
+                          <Barcode className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -322,6 +422,49 @@ export function ProductsManagementTab() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Print Barcode Dialog */}
+      <Dialog open={showBarcodeDialog} onOpenChange={setShowBarcodeDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Barcode className="w-5 h-5" />
+              ພິມບາໂຄ້ດສິນຄ້າ
+            </DialogTitle>
+          </DialogHeader>
+          
+          {singleBarcodeProduct && (
+            <div className="space-y-4">
+              <div className="p-4 bg-secondary rounded-lg text-center">
+                <p className="font-medium">{singleBarcodeProduct.name}</p>
+                <p className="text-2xl font-mono mt-2">{singleBarcodeProduct.barcode || 'ບໍ່ມີບາໂຄ້ດ'}</p>
+                <p className="text-lg font-bold text-primary mt-2">₭{singleBarcodeProduct.selling_price.toLocaleString()}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>ຈຳນວນທີ່ຕ້ອງການພິມ</Label>
+                <Input
+                  type="number"
+                  value={barcodeQuantity}
+                  onChange={(e) => setBarcodeQuantity(Math.max(1, Number(e.target.value)))}
+                  min={1}
+                  max={100}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBarcodeDialog(false)}>
+              ຍົກເລີກ
+            </Button>
+            <Button onClick={handleConfirmPrintBarcode} disabled={!singleBarcodeProduct?.barcode}>
+              <Printer className="w-4 h-4 mr-2" />
+              ພິມບາໂຄ້ດ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add/Edit Product Dialog */}
       <Dialog open={showAddProduct} onOpenChange={setShowAddProduct}>
@@ -381,7 +524,7 @@ export function ProductsManagementTab() {
               <Input
                 value={formData.unit}
                 onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                placeholder="ชิ้น, กล่อง, ขวด"
+                placeholder="ຊິ້ນ, ກ່ອງ, ຂວດ"
               />
             </div>
             <div className="space-y-2">
@@ -450,10 +593,11 @@ export function ProductsManagementTab() {
 
       {/* Add Category Dialog */}
       <Dialog open={showAddCategory} onOpenChange={setShowAddCategory}>
-        <DialogContent>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>ເພີ່ມໝວດໝູ່ໃໝ່</DialogTitle>
           </DialogHeader>
+          
           <div className="space-y-2">
             <Label>ຊື່ໝວດໝູ່</Label>
             <Input
@@ -462,11 +606,14 @@ export function ProductsManagementTab() {
               placeholder="ຊື່ໝວດໝູ່"
             />
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddCategory(false)}>
               ຍົກເລີກ
             </Button>
-            <Button onClick={handleAddCategory}>ເພີ່ມ</Button>
+            <Button onClick={handleAddCategory}>
+              ເພີ່ມໝວດໝູ່
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
