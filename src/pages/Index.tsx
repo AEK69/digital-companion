@@ -20,6 +20,7 @@ import { InventoryTab } from '@/components/pos/InventoryTab';
 import { SalesReportTab } from '@/components/pos/SalesReportTab';
 import { CustomersTab } from '@/components/pos/CustomersTab';
 import { ReorderReportTab } from '@/components/pos/ReorderReportTab';
+import { DashboardTab } from '@/components/pos/DashboardTab';
 import { useProducts } from '@/hooks/useProducts';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -166,6 +167,7 @@ const Index = () => {
       />
 
       <main className="container mx-auto px-4 py-6">
+        {activeTab === 'dashboard' && <DashboardTab />}
         {activeTab === 'pos' && <POSTab employees={employees} storeInfo={storeInfo} onNavigateToInventory={() => setActiveTab('inventory')} />}
         {activeTab === 'products' && <ProductsManagementTab />}
         {activeTab === 'inventory' && <InventoryTab />}

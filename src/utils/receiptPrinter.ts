@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { CartItem, Sale, SaleItem } from '@/hooks/useSales';
 import { StoreInfo, Employee } from '@/types';
 import { Customer } from '@/hooks/useCustomers';
@@ -14,10 +13,10 @@ interface ReceiptData {
   pointsDiscount?: number;
 }
 
-// Format number with comma (Lao format)
+// Format number with comma
 const formatNumber = (num: number) => num.toLocaleString('en-US');
 
-// Format date/time in Lao
+// Format date/time
 const formatDateTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const day = date.getDate().toString().padStart(2, '0');
@@ -33,309 +32,365 @@ const formatDateTime = (dateStr: string) => {
   };
 };
 
-// QR Code for BCEL One Pay
-const BCEL_QR_CODE = '00020101021115312738041800520446mch19B73F61B9E038570016A00526628466257701082771041802030020314mch19B73F61B9E5204569153034185802LA5916AKAPHON XAYYABED6002VT62120208586625406304C735';
-
-// Draw QR Code (simplified pattern for PDF)
-const drawQRCode = (doc: jsPDF, x: number, y: number, size: number) => {
-  const moduleSize = size / 25;
-  doc.setFillColor(0, 0, 0);
-  
-  // Generate simple QR pattern
-  for (let row = 0; row < 25; row++) {
-    for (let col = 0; col < 25; col++) {
-      // Position detection patterns (corners)
-      const isCorner = (row < 7 && col < 7) || 
-                       (row < 7 && col > 17) || 
-                       (row > 17 && col < 7);
-      
-      // Random-ish data pattern
-      const isData = ((row + col) % 2 === 0 || (row * col) % 3 === 0) && !isCorner;
-      
-      if (isCorner || isData) {
-        // Corner patterns
-        if (isCorner) {
-          const cornerX = col < 7 ? 0 : (col > 17 ? 18 : 0);
-          const cornerY = row < 7 ? 0 : (row > 17 ? 18 : 0);
-          const localRow = row - cornerY;
-          const localCol = col - cornerX;
-          
-          if (localRow === 0 || localRow === 6 || localCol === 0 || localCol === 6 ||
-              (localRow >= 2 && localRow <= 4 && localCol >= 2 && localCol <= 4)) {
-            doc.rect(x + col * moduleSize, y + row * moduleSize, moduleSize, moduleSize, 'F');
-          }
-        } else {
-          doc.rect(x + col * moduleSize, y + row * moduleSize, moduleSize, moduleSize, 'F');
-        }
-      }
-    }
-  }
-};
-
-// Generate POS Receipt PDF (Thermal printer format - 80mm or 58mm)
-export const generatePOSReceiptPDF = (data: ReceiptData, paperWidth: 80 | 58 = 80, showQR: boolean = true) => {
-  const { sale, items, employee, storeInfo, receivedAmount, changeAmount, customer, pointsDiscount } = data;
-  
-  // Calculate receipt height based on items
-  const baseHeight = showQR && sale.payment_method === 'qr' ? 180 : 150;
-  const itemHeight = items.length * 8;
-  const totalHeight = baseHeight + itemHeight;
-  
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: [paperWidth, Math.max(totalHeight, 120)],
-  });
-
-  const pageWidth = paperWidth;
-  const margin = 3;
-  let y = 6;
-
-  // Helper function to draw dashed line
-  const drawDashedLine = (yPos: number) => {
-    doc.setLineDashPattern([1, 1], 0);
-    doc.setLineWidth(0.1);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    doc.setLineDashPattern([], 0);
-  };
-
-  // === HEADER - Store Name Only (No Logo) ===
-  doc.setFontSize(paperWidth === 80 ? 16 : 14);
-  doc.setFont('helvetica', 'bold');
-  doc.text(storeInfo.name, pageWidth / 2, y, { align: 'center' });
-  
-  y += 5;
-  doc.setFontSize(paperWidth === 80 ? 9 : 8);
-  doc.setFont('helvetica', 'normal');
-  
-  if (storeInfo.address) {
-    doc.text(storeInfo.address, pageWidth / 2, y, { align: 'center' });
-    y += 4;
-  }
-  if (storeInfo.phone) {
-    doc.text(`Tel: ${storeInfo.phone}`, pageWidth / 2, y, { align: 'center' });
-    y += 4;
-  }
-
-  // === DIVIDER ===
-  y += 1;
-  drawDashedLine(y);
-  y += 5;
-
-  // === RECEIPT TITLE ===
-  doc.setFontSize(paperWidth === 80 ? 12 : 11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RECEIPT / BILL', pageWidth / 2, y, { align: 'center' });
-  y += 6;
-  
-  // === RECEIPT INFO ===
-  const { date, time } = formatDateTime(sale.created_at);
-  
-  doc.setFontSize(paperWidth === 80 ? 9 : 8);
-  doc.setFont('helvetica', 'normal');
-  
-  // Receipt number
-  doc.text(`No: ${sale.sale_number}`, margin, y);
-  y += 4;
-  
-  // Date and Time
-  doc.text(`Date: ${date}`, margin, y);
-  doc.text(`Time: ${time}`, pageWidth - margin, y, { align: 'right' });
-  y += 4;
-  
-  // Employee
-  if (employee) {
-    doc.text(`Staff: ${employee.name}`, margin, y);
-    y += 4;
-  }
-  
-  // Customer
-  if (customer) {
-    doc.text(`Customer: ${customer.name}`, margin, y);
-    y += 4;
-    if (customer.phone) {
-      doc.text(`Phone: ${customer.phone}`, margin, y);
-      y += 4;
-    }
-  }
-  
-  // Payment method
-  doc.text(`Payment: ${getPaymentMethodLabel(sale.payment_method)}`, margin, y);
-
-  // === DIVIDER ===
-  y += 3;
-  drawDashedLine(y);
-  y += 5;
-
-  // === ITEMS TABLE HEADER ===
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(paperWidth === 80 ? 9 : 8);
-  doc.text('Item', margin, y);
-  doc.text('Qty', pageWidth / 2 - 5, y, { align: 'center' });
-  doc.text('Price', pageWidth / 2 + 10, y, { align: 'center' });
-  doc.text('Total', pageWidth - margin, y, { align: 'right' });
-  y += 2;
-  drawDashedLine(y);
-  y += 4;
-
-  // === ITEMS ===
-  doc.setFont('helvetica', 'normal');
-  items.forEach((item, index) => {
-    // Product name (may wrap)
-    const maxNameLength = paperWidth === 80 ? 16 : 12;
-    const name = item.product_name.length > maxNameLength 
-      ? item.product_name.substring(0, maxNameLength) + '..' 
-      : item.product_name;
-    
-    doc.text(`${index + 1}.${name}`, margin, y);
-    doc.text(`${item.quantity}`, pageWidth / 2 - 5, y, { align: 'center' });
-    doc.text(`${formatNumber(item.unit_price)}`, pageWidth / 2 + 10, y, { align: 'center' });
-    doc.text(`${formatNumber(item.total_price)}`, pageWidth - margin, y, { align: 'right' });
-    y += 5;
-  });
-
-  // === DIVIDER ===
-  y += 1;
-  drawDashedLine(y);
-  y += 5;
-
-  // === TOTALS ===
-  doc.setFontSize(paperWidth === 80 ? 9 : 8);
-  doc.text('Subtotal:', margin, y);
-  doc.text(`${formatNumber(sale.total_amount)} LAK`, pageWidth - margin, y, { align: 'right' });
-  y += 4;
-
-  if (sale.discount_amount > 0) {
-    if (pointsDiscount && pointsDiscount > 0) {
-      const regularDiscount = sale.discount_amount - pointsDiscount;
-      if (regularDiscount > 0) {
-        doc.text('Discount:', margin, y);
-        doc.text(`-${formatNumber(regularDiscount)} LAK`, pageWidth - margin, y, { align: 'right' });
-        y += 4;
-      }
-      doc.text('Points Discount:', margin, y);
-      doc.text(`-${formatNumber(pointsDiscount)} LAK`, pageWidth - margin, y, { align: 'right' });
-      y += 4;
-    } else {
-      doc.text('Discount:', margin, y);
-      doc.text(`-${formatNumber(sale.discount_amount)} LAK`, pageWidth - margin, y, { align: 'right' });
-      y += 4;
-    }
-  }
-
-  // Final amount
-  y += 1;
-  drawDashedLine(y);
-  y += 5;
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(paperWidth === 80 ? 12 : 11);
-  doc.text('TOTAL:', margin, y);
-  doc.text(`${formatNumber(sale.final_amount)} LAK`, pageWidth - margin, y, { align: 'right' });
-  y += 6;
-
-  // Payment info if cash
-  if (sale.payment_method === 'cash' && receivedAmount !== undefined) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(paperWidth === 80 ? 9 : 8);
-    doc.text('Received:', margin, y);
-    doc.text(`${formatNumber(receivedAmount)} LAK`, pageWidth - margin, y, { align: 'right' });
-    y += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Change:', margin, y);
-    doc.text(`${formatNumber(changeAmount || 0)} LAK`, pageWidth - margin, y, { align: 'right' });
-    y += 4;
-  }
-
-  // === QR CODE FOR QR PAYMENT ===
-  if (showQR && sale.payment_method === 'qr') {
-    y += 2;
-    drawDashedLine(y);
-    y += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(paperWidth === 80 ? 10 : 9);
-    doc.text('Scan QR to Pay', pageWidth / 2, y, { align: 'center' });
-    y += 4;
-    
-    // Draw QR Code
-    const qrSize = paperWidth === 80 ? 30 : 25;
-    drawQRCode(doc, (pageWidth - qrSize) / 2, y, qrSize);
-    y += qrSize + 3;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text('BCEL One Pay', pageWidth / 2, y, { align: 'center' });
-    y += 5;
-  }
-
-  // === LOYALTY POINTS INFO ===
-  if (customer) {
-    y += 1;
-    drawDashedLine(y);
-    y += 5;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(paperWidth === 80 ? 8 : 7);
-    
-    const earnedPoints = Math.floor(sale.final_amount / 10000);
-    const newPoints = customer.loyalty_points - (pointsDiscount ? Math.ceil(pointsDiscount / 100) : 0) + earnedPoints;
-    
-    doc.text(`Loyalty Points: ${newPoints} pts`, pageWidth / 2, y, { align: 'center' });
-    y += 3;
-    doc.text('(10,000 LAK = 1 point)', pageWidth / 2, y, { align: 'center' });
-    y += 5;
-  }
-
-  // === FOOTER ===
-  y += 1;
-  drawDashedLine(y);
-  y += 5;
-  
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(paperWidth === 80 ? 10 : 9);
-  doc.text('Thank You!', pageWidth / 2, y, { align: 'center' });
-  y += 4;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(paperWidth === 80 ? 7 : 6);
-  doc.text('Please come again', pageWidth / 2, y, { align: 'center' });
-
-  return doc;
-};
-
-// Get payment method label
+// Get payment method label in Lao
 const getPaymentMethodLabel = (method: string) => {
   switch (method) {
-    case 'cash': return 'Cash';
-    case 'transfer': return 'Bank Transfer';
+    case 'cash': return 'ເງິນສົດ';
+    case 'transfer': return 'ໂອນເງິນ';
     case 'qr': return 'QR Code';
     default: return method;
   }
 };
 
-// Print receipt - opens print dialog
-export const printReceipt = async (data: ReceiptData, paperWidth: 80 | 58 = 80, showQR: boolean = true) => {
-  const doc = generatePOSReceiptPDF(data, paperWidth, showQR);
+// Generate HTML Receipt that supports Lao font
+const generateReceiptHTML = (data: ReceiptData): string => {
+  const { sale, items, employee, storeInfo, receivedAmount, changeAmount, customer, pointsDiscount } = data;
+  const { date, time } = formatDateTime(sale.created_at);
   
-  // Open PDF in new window for printing
-  const pdfBlob = doc.output('blob');
-  const pdfUrl = URL.createObjectURL(pdfBlob);
-  
-  const printWindow = window.open(pdfUrl, '_blank');
-  if (printWindow) {
-    printWindow.onload = () => {
-      printWindow.print();
-    };
-  }
-  
-  return doc;
+  // Build items HTML
+  const itemsHTML = items.map((item, index) => `
+    <tr>
+      <td style="padding: 4px 0; text-align: left; border-bottom: 1px dashed #ddd;">
+        ${index + 1}. ${item.product_name}
+      </td>
+      <td style="padding: 4px 0; text-align: center; border-bottom: 1px dashed #ddd;">
+        ${item.quantity}
+      </td>
+      <td style="padding: 4px 0; text-align: right; border-bottom: 1px dashed #ddd;">
+        ${formatNumber(item.unit_price)}
+      </td>
+      <td style="padding: 4px 0; text-align: right; border-bottom: 1px dashed #ddd;">
+        ${formatNumber(item.total_price)}
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>ໃບບິນ - ${sale.sale_number}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;600;700&display=swap');
+        
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Noto Sans Lao', 'Phetsarath OT', Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+          background: white;
+          padding: 10px;
+          width: 80mm;
+          max-width: 80mm;
+        }
+        
+        .receipt {
+          width: 100%;
+        }
+        
+        .header {
+          text-align: center;
+          padding-bottom: 10px;
+          border-bottom: 2px dashed #333;
+        }
+        
+        .store-name {
+          font-size: 18px;
+          font-weight: 700;
+          margin-bottom: 5px;
+        }
+        
+        .store-info {
+          font-size: 11px;
+          color: #555;
+        }
+        
+        .receipt-title {
+          text-align: center;
+          font-size: 14px;
+          font-weight: 700;
+          margin: 10px 0;
+          padding: 5px;
+          background: #f5f5f5;
+        }
+        
+        .info-section {
+          padding: 10px 0;
+          border-bottom: 1px dashed #333;
+        }
+        
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 3px;
+          font-size: 11px;
+        }
+        
+        .items-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 10px 0;
+          font-size: 11px;
+        }
+        
+        .items-table th {
+          text-align: left;
+          padding: 5px 0;
+          border-bottom: 2px solid #333;
+          font-weight: 600;
+        }
+        
+        .items-table th:nth-child(2),
+        .items-table th:nth-child(3),
+        .items-table th:nth-child(4) {
+          text-align: center;
+        }
+        
+        .items-table th:last-child {
+          text-align: right;
+        }
+        
+        .totals-section {
+          padding: 10px 0;
+          border-top: 2px dashed #333;
+        }
+        
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+          font-size: 12px;
+        }
+        
+        .total-row.grand-total {
+          font-size: 16px;
+          font-weight: 700;
+          padding: 8px 0;
+          border-top: 1px solid #333;
+          border-bottom: 1px solid #333;
+          margin-top: 5px;
+        }
+        
+        .payment-info {
+          padding: 10px 0;
+          background: #f9f9f9;
+          margin: 10px 0;
+          padding: 10px;
+          border-radius: 5px;
+        }
+        
+        .qr-section {
+          text-align: center;
+          padding: 15px 0;
+          border-top: 1px dashed #333;
+        }
+        
+        .qr-title {
+          font-weight: 600;
+          margin-bottom: 10px;
+        }
+        
+        .loyalty-section {
+          text-align: center;
+          padding: 10px;
+          background: #fff3e0;
+          border-radius: 5px;
+          margin: 10px 0;
+          font-size: 11px;
+        }
+        
+        .footer {
+          text-align: center;
+          padding: 15px 0;
+          border-top: 2px dashed #333;
+        }
+        
+        .thank-you {
+          font-size: 16px;
+          font-weight: 700;
+          margin-bottom: 5px;
+        }
+        
+        .sub-text {
+          font-size: 11px;
+          color: #666;
+        }
+        
+        @media print {
+          body {
+            width: 80mm;
+            padding: 5px;
+          }
+          
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <!-- Header -->
+        <div class="header">
+          <div class="store-name">${storeInfo.name}</div>
+          ${storeInfo.address ? `<div class="store-info">${storeInfo.address}</div>` : ''}
+          ${storeInfo.phone ? `<div class="store-info">ໂທ: ${storeInfo.phone}</div>` : ''}
+        </div>
+        
+        <!-- Receipt Title -->
+        <div class="receipt-title">ໃບບິນຂາຍ</div>
+        
+        <!-- Info Section -->
+        <div class="info-section">
+          <div class="info-row">
+            <span>ເລກທີ່:</span>
+            <span>${sale.sale_number}</span>
+          </div>
+          <div class="info-row">
+            <span>ວັນທີ:</span>
+            <span>${date}</span>
+          </div>
+          <div class="info-row">
+            <span>ເວລາ:</span>
+            <span>${time}</span>
+          </div>
+          ${employee ? `
+          <div class="info-row">
+            <span>ພະນັກງານ:</span>
+            <span>${employee.name}</span>
+          </div>
+          ` : ''}
+          ${customer ? `
+          <div class="info-row">
+            <span>ລູກຄ້າ:</span>
+            <span>${customer.name}</span>
+          </div>
+          ${customer.phone ? `
+          <div class="info-row">
+            <span>ເບີໂທ:</span>
+            <span>${customer.phone}</span>
+          </div>
+          ` : ''}
+          ` : ''}
+          <div class="info-row">
+            <span>ວິທີຊຳລະ:</span>
+            <span>${getPaymentMethodLabel(sale.payment_method)}</span>
+          </div>
+        </div>
+        
+        <!-- Items Table -->
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>ລາຍການສິນຄ້າ</th>
+              <th>ຈຳນວນ</th>
+              <th>ລາຄາ</th>
+              <th>ລວມ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+        </table>
+        
+        <!-- Totals Section -->
+        <div class="totals-section">
+          <div class="total-row">
+            <span>ລວມທັງໝົດ:</span>
+            <span>₭${formatNumber(sale.total_amount)}</span>
+          </div>
+          ${sale.discount_amount > 0 ? `
+          ${pointsDiscount && pointsDiscount > 0 ? `
+            ${sale.discount_amount - pointsDiscount > 0 ? `
+            <div class="total-row">
+              <span>ສ່ວນຫຼຸດ:</span>
+              <span>-₭${formatNumber(sale.discount_amount - pointsDiscount)}</span>
+            </div>
+            ` : ''}
+            <div class="total-row">
+              <span>ສ່ວນຫຼຸດຄະແນນສະສົມ:</span>
+              <span>-₭${formatNumber(pointsDiscount)}</span>
+            </div>
+          ` : `
+            <div class="total-row">
+              <span>ສ່ວນຫຼຸດ:</span>
+              <span>-₭${formatNumber(sale.discount_amount)}</span>
+            </div>
+          `}
+          ` : ''}
+          <div class="total-row grand-total">
+            <span>ຍອດສຸດທິ:</span>
+            <span>₭${formatNumber(sale.final_amount)}</span>
+          </div>
+        </div>
+        
+        <!-- Payment Info for Cash -->
+        ${sale.payment_method === 'cash' && receivedAmount !== undefined ? `
+        <div class="payment-info">
+          <div class="total-row">
+            <span>ເງິນທີ່ຮັບ:</span>
+            <span>₭${formatNumber(receivedAmount)}</span>
+          </div>
+          <div class="total-row" style="font-weight: 700; color: #16a34a;">
+            <span>ເງິນທອນ:</span>
+            <span>₭${formatNumber(changeAmount || 0)}</span>
+          </div>
+        </div>
+        ` : ''}
+        
+        <!-- Loyalty Points -->
+        ${customer ? `
+        <div class="loyalty-section">
+          <div>ຄະແນນສະສົມໃໝ່: <strong>${customer.loyalty_points - (pointsDiscount ? Math.ceil(pointsDiscount / 100) : 0) + Math.floor(sale.final_amount / 10000)}</strong> ຄະແນນ</div>
+          <div style="font-size: 10px; color: #666;">(ທຸກ ₭10,000 = 1 ຄະແນນ)</div>
+        </div>
+        ` : ''}
+        
+        <!-- Footer -->
+        <div class="footer">
+          <div class="thank-you">ຂອບໃຈທີ່ອຸດໜູນ!</div>
+          <div class="sub-text">ຍິນດີຕ້ອນຮັບຄັ້ງຕໍ່ໄປ</div>
+        </div>
+      </div>
+      
+      <script>
+        window.onload = function() {
+          window.print();
+        };
+      </script>
+    </body>
+    </html>
+  `;
 };
 
-// Download receipt as PDF
+// Print receipt - opens print dialog with HTML
+export const printReceipt = async (data: ReceiptData, paperWidth: 80 | 58 = 80, showQR: boolean = true) => {
+  const html = generateReceiptHTML(data);
+  
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+};
+
+// Download receipt as HTML file
 export const downloadReceipt = (data: ReceiptData, paperWidth: 80 | 58 = 80, showQR: boolean = true) => {
-  const doc = generatePOSReceiptPDF(data, paperWidth, showQR);
-  doc.save(`receipt-${data.sale.sale_number}.pdf`);
-  return doc;
+  const html = generateReceiptHTML(data);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `receipt-${data.sale.sale_number}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 // Generate receipt for cart items before sale is completed (preview)
@@ -348,45 +403,70 @@ export const generateCartReceiptPreview = (
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
   const finalAmount = totalAmount - discountAmount;
   
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: [paperWidth, 100 + (items.length * 6)],
-  });
+  const itemsHTML = items.map((item, index) => `
+    <tr>
+      <td>${index + 1}. ${item.product_name}</td>
+      <td>${item.quantity}x${formatNumber(item.unit_price)}</td>
+      <td>₭${formatNumber(item.total_price)}</td>
+    </tr>
+  `).join('');
 
-  const pageWidth = paperWidth;
-  const margin = 3;
-  let y = 8;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>ຕົວຢ່າງໃບບິນ</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@400;600;700&display=swap');
+        body {
+          font-family: 'Noto Sans Lao', Arial, sans-serif;
+          font-size: 12px;
+          padding: 15px;
+          width: 80mm;
+        }
+        .header {
+          text-align: center;
+          font-size: 16px;
+          font-weight: bold;
+          margin-bottom: 10px;
+        }
+        .preview-label {
+          text-align: center;
+          background: #fff3cd;
+          padding: 5px;
+          margin-bottom: 10px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        td {
+          padding: 3px;
+          border-bottom: 1px dashed #ddd;
+        }
+        .total {
+          font-weight: bold;
+          font-size: 14px;
+          margin-top: 10px;
+          text-align: right;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">${storeInfo.name}</div>
+      <div class="preview-label">** ຕົວຢ່າງໃບບິນ **</div>
+      <table>
+        ${itemsHTML}
+      </table>
+      <div class="total">ຍອດສຸດທິ: ₭${formatNumber(finalAmount)}</div>
+    </body>
+    </html>
+  `;
 
-  // Header - Store name only
-  doc.setFontSize(paperWidth === 80 ? 14 : 12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(storeInfo.name, pageWidth / 2, y, { align: 'center' });
-  y += 8;
-
-  // Preview label
-  doc.setFontSize(paperWidth === 80 ? 9 : 8);
-  doc.text('** PREVIEW **', pageWidth / 2, y, { align: 'center' });
-  y += 6;
-
-  // Items
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(paperWidth === 80 ? 8 : 7);
-  items.forEach((item, index) => {
-    const maxNameLength = paperWidth === 80 ? 15 : 12;
-    const name = item.product_name.length > maxNameLength 
-      ? item.product_name.substring(0, maxNameLength) + '..' 
-      : item.product_name;
-    doc.text(`${index + 1}. ${name}`, margin, y);
-    doc.text(`${item.quantity}x${formatNumber(item.unit_price)}`, pageWidth / 2, y, { align: 'center' });
-    doc.text(`${formatNumber(item.total_price)} LAK`, pageWidth - margin, y, { align: 'right' });
-    y += 4;
-  });
-
-  y += 4;
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL:', margin, y);
-  doc.text(`${formatNumber(finalAmount)} LAK`, pageWidth - margin, y, { align: 'right' });
-
-  return doc;
+  const printWindow = window.open('', '_blank', 'width=400,height=400');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
 };

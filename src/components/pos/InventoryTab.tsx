@@ -24,11 +24,15 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   ArrowDownCircle,
-  Search
+  Search,
+  Mail,
+  Loader2
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { useStoreSettings } from '@/hooks/useStoreSettings';
 
 interface InventoryTransaction {
   id: string;
@@ -43,6 +47,7 @@ interface InventoryTransaction {
 
 export function InventoryTab() {
   const { products, updateStock } = useProducts();
+  const { storeSettings } = useStoreSettings();
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showStockDialog, setShowStockDialog] = useState(false);
@@ -51,6 +56,9 @@ export function InventoryTab() {
   const [quantity, setQuantity] = useState(0);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -113,10 +121,43 @@ export function InventoryTab() {
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.min_stock_level);
   const totalStockValue = products.reduce((sum, p) => sum + (p.stock_quantity * p.cost_price), 0);
 
+  // Send email alert function
+  const handleSendEmailAlert = async () => {
+    if (!recipientEmail.trim()) {
+      toast.error('ກະລຸນາປ້ອນ Email');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('low-stock-alert', {
+        body: {
+          recipientEmail: recipientEmail.trim(),
+          storeName: storeSettings.name,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success(`ສົ່ງແຈ້ງເຕືອນໄປ ${recipientEmail} ສຳເລັດ (${data.alertCount} ລາຍການ)`);
+        setShowEmailDialog(false);
+        setRecipientEmail('');
+      } else {
+        throw new Error(data?.error || 'ສົ່ງ Email ລົ້ມເຫຼວ');
+      }
+    } catch (error: any) {
+      console.error('Email error:', error);
+      toast.error(error.message || 'ສົ່ງ Email ລົ້ມເຫຼວ');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -142,10 +183,31 @@ export function InventoryTab() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <Package className="w-8 h-8 text-green-600" />
+              <Package className="w-8 h-8 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">ມູນຄ່າສະຕ໊ອກ</p>
                 <p className="text-2xl font-bold">₭{totalStockValue.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        {/* Email Alert Button Card */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Mail className="w-8 h-8 text-primary" />
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">ແຈ້ງເຕືອນ Email</p>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowEmailDialog(true)}
+                  disabled={lowStockProducts.length === 0}
+                  className="mt-1"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  ສົ່ງແຈ້ງເຕືອນ
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -317,6 +379,66 @@ export function InventoryTab() {
             </Button>
             <Button onClick={handleUpdateStock} disabled={quantity === 0}>
               ບັນທຶກ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Alert Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              ສົ່ງແຈ້ງເຕືອນສິນຄ້າໃກ້ໝົດ
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-4 bg-destructive/10 rounded-lg">
+              <p className="text-sm text-destructive font-medium">
+                ມີ {lowStockProducts.length} ສິນຄ້າທີ່ໃກ້ໝົດສະຕ໊ອກ
+              </p>
+              <ul className="mt-2 text-sm text-muted-foreground max-h-32 overflow-y-auto">
+                {lowStockProducts.slice(0, 5).map(p => (
+                  <li key={p.id}>• {p.name} (ເຫຼືອ {p.stock_quantity})</li>
+                ))}
+                {lowStockProducts.length > 5 && (
+                  <li>ແລະອື່ນໆ...</li>
+                )}
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Email ຜູ້ຮັບ</Label>
+              <Input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="example@email.com"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
+              ຍົກເລີກ
+            </Button>
+            <Button 
+              onClick={handleSendEmailAlert} 
+              disabled={sendingEmail || !recipientEmail.trim()}
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ກຳລັງສົ່ງ...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  ສົ່ງ Email
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
