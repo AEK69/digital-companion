@@ -15,7 +15,8 @@ import {
   Warehouse,
   Receipt,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  LayoutDashboard
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -26,6 +27,7 @@ interface NavigationProps {
 }
 
 const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPermission?: keyof typeof ROLE_PERMISSIONS['admin'] }[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'canViewFinance' },
   { id: 'pos', label: 'ຂາຍສິນຄ້າ', icon: ShoppingCart },
   { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
   { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
