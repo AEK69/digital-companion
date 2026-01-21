@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.low-stock-alert]
 verify_jwt = false
+
+[functions.generate-payment-qr]
+verify_jwt = false
