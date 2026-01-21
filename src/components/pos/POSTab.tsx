@@ -373,15 +373,15 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
     : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 h-[calc(100vh-120px)] flex flex-col">
       {/* Stock Alerts */}
       {hasAlerts && (
         <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-280px)]">
-      {/* Products Section */}
-      <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1 min-h-0">
+      {/* Products Section - Takes more space on desktop */}
+      <div className="xl:col-span-8 space-y-4 flex flex-col min-h-0">
         {/* Barcode Scanner Input */}
         <Card>
           <CardContent className="p-4">
@@ -433,17 +433,17 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           </CardContent>
         </Card>
 
-        {/* Products Grid */}
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
+        {/* Products Grid - Flexible height */}
+        <Card className="flex-1 min-h-0 flex flex-col">
+          <CardHeader className="pb-2 shrink-0">
             <CardTitle className="text-lg flex items-center gap-2">
               <Package className="w-5 h-5" />
               ສິນຄ້າ ({filteredProducts.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <CardContent className="flex-1 min-h-0 p-4">
+            <ScrollArea className="h-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                 {filteredProducts.map(product => (
                   <button
                     key={product.id}
@@ -484,8 +484,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         </Card>
       </div>
 
-      {/* Cart Section */}
-      <Card className="flex flex-col h-full">
+      {/* Cart Section - Fixed width on desktop */}
+      <Card className="xl:col-span-4 flex flex-col min-h-0">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">

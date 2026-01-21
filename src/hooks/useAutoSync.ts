@@ -2,9 +2,10 @@ import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Employee, Income, Expense, Attendance, Leave } from '@/types';
 import { prepareDataForSync } from '@/utils/exportUtils';
-import { toast } from 'sonner';
+import { Sale } from '@/hooks/useSales';
+import { Customer } from '@/hooks/useCustomers';
 
-const SYNC_DEBOUNCE_MS = 5000; // Wait 5 seconds after last change before syncing
+const SYNC_DEBOUNCE_MS = 5000;
 
 interface UseAutoSyncProps {
   incomes: Income[];
@@ -12,6 +13,8 @@ interface UseAutoSyncProps {
   attendances: Attendance[];
   leaves: Leave[];
   employees: Employee[];
+  sales?: Sale[];
+  customers?: Customer[];
   spreadsheetId: string | null;
   enabled: boolean;
 }
@@ -22,6 +25,8 @@ export function useAutoSync({
   attendances,
   leaves,
   employees,
+  sales = [],
+  customers = [],
   spreadsheetId,
   enabled,
 }: UseAutoSyncProps) {
@@ -38,15 +43,34 @@ export function useAutoSync({
       attendances: attendances.length,
       leaves: leaves.length,
       employees: employees.length,
+      sales: sales.length,
     });
 
-    // Skip if data hasn't changed
     if (dataHash === lastSyncRef.current) return;
 
     isSyncingRef.current = true;
 
     try {
-      const data = prepareDataForSync(incomes, expenses, attendances, leaves, employees);
+      // Fetch sale items for current sales
+      let saleItems: any[] = [];
+      if (sales.length > 0) {
+        const { data } = await supabase
+          .from('sale_items')
+          .select('*')
+          .in('sale_id', sales.map(s => s.id));
+        saleItems = data || [];
+      }
+
+      const data = prepareDataForSync(
+        incomes, 
+        expenses, 
+        attendances, 
+        leaves, 
+        employees,
+        sales,
+        saleItems,
+        customers
+      );
 
       const { data: result, error } = await supabase.functions.invoke('sync-google-sheets', {
         body: { spreadsheetId, data },
@@ -65,17 +89,15 @@ export function useAutoSync({
     } finally {
       isSyncingRef.current = false;
     }
-  }, [incomes, expenses, attendances, leaves, employees, spreadsheetId, enabled]);
+  }, [incomes, expenses, attendances, leaves, employees, sales, customers, spreadsheetId, enabled]);
 
   const triggerSync = useCallback(() => {
     if (!spreadsheetId || !enabled) return;
 
-    // Clear existing timeout
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
 
-    // Set new timeout for debounced sync
     syncTimeoutRef.current = setTimeout(() => {
       syncToGoogleSheets();
     }, SYNC_DEBOUNCE_MS);
