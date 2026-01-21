@@ -112,7 +112,10 @@ export function prepareDataForSync(
   expenses: Expense[],
   attendances: Attendance[],
   leaves: Leave[],
-  employees: Employee[]
+  employees: Employee[],
+  sales?: any[],
+  saleItems?: any[],
+  customers?: any[]
 ) {
   return {
     incomes: incomes.map(i => ({
@@ -132,5 +135,14 @@ export function prepareDataForSync(
       employeeName: employees.find(e => e.id === l.employeeId)?.name || 'N/A',
     })),
     employees,
+    sales: (sales || []).map(s => ({
+      ...s,
+      employeeName: employees.find(e => e.id === s.employee_id)?.name || '-',
+      customerName: customers?.find(c => c.id === s.customer_id)?.name || '-',
+    })),
+    sale_items: (saleItems || []).map(si => ({
+      ...si,
+      sale_number: sales?.find(s => s.id === si.sale_id)?.sale_number || '-',
+    })),
   };
 }

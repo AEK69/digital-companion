@@ -330,6 +330,35 @@ function formatDataForSheet(type: string, data: unknown[]): unknown[][] {
         ...data.map((e: any) => [e.name, e.hourlyRate]),
       ];
 
+    case 'sales':
+      return [
+        ['ເລກບິນ', 'ວັນທີ', 'ພະນັກງານ', 'ລູກຄ້າ', 'ລວມ', 'ສ່ວນຫຼຸດ', 'ສຸດທິ', 'ວິທີຊຳລະ', 'ສະຖານະ', 'ໝາຍເຫດ'],
+        ...data.map((s: any) => [
+          s.sale_number,
+          new Date(s.created_at).toLocaleString('lo-LA'),
+          s.employeeName || '-',
+          s.customerName || '-',
+          s.total_amount,
+          s.discount_amount,
+          s.final_amount,
+          s.payment_method === 'cash' ? 'ເງິນສົດ' : s.payment_method === 'transfer' ? 'ໂອນ' : 'QR',
+          s.status === 'completed' ? 'ສຳເລັດ' : 'ຍົກເລີກ',
+          s.note || '-',
+        ]),
+      ];
+
+    case 'sale_items':
+      return [
+        ['ເລກບິນ', 'ສິນຄ້າ', 'ຈຳນວນ', 'ລາຄາຕໍ່ໜ່ວຍ', 'ລວມ'],
+        ...data.map((si: any) => [
+          si.sale_number,
+          si.product_name,
+          si.quantity,
+          si.unit_price,
+          si.total_price,
+        ]),
+      ];
+
     default:
       return [['ບໍ່ມີຂໍ້ມູນ']];
   }
@@ -374,7 +403,7 @@ serve(async (req) => {
     console.log('Got access token');
 
     // Update each sheet
-    const sheets = ['incomes', 'expenses', 'attendances', 'leaves', 'employees'];
+    const sheets = ['incomes', 'expenses', 'attendances', 'leaves', 'employees', 'sales', 'sale_items'];
     const results: Record<string, string> = {};
 
     for (const sheet of sheets) {

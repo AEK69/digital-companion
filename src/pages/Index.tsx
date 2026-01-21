@@ -22,6 +22,8 @@ import { CustomersTab } from '@/components/pos/CustomersTab';
 import { ReorderReportTab } from '@/components/pos/ReorderReportTab';
 import { DashboardTab } from '@/components/pos/DashboardTab';
 import { useProducts } from '@/hooks/useProducts';
+import { useSales } from '@/hooks/useSales';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAutoSync } from '@/hooks/useAutoSync';
@@ -46,6 +48,8 @@ const Index = () => {
   const { attendances, clockIn, clockOut } = useAttendances(employees);
   const { leaves, addLeave, deleteLeave } = useLeaves();
   const { products } = useProducts();
+  const { sales } = useSales();
+  const { customers } = useCustomers();
 
   // Convert store settings to StoreInfo format
   const storeInfo: StoreInfo = {
@@ -65,16 +69,18 @@ const Index = () => {
     attendances,
     leaves,
     employees,
+    sales,
+    customers,
     spreadsheetId: storeSettings.googleSpreadsheetId,
     enabled: storeSettings.autoSyncEnabled,
   });
 
-  // Trigger sync when data changes
+  // Trigger sync when data changes (including sales)
   useEffect(() => {
     if (storeSettings.autoSyncEnabled && storeSettings.googleSpreadsheetId) {
       triggerSync();
     }
-  }, [incomes, expenses, attendances, leaves, employees, storeSettings.autoSyncEnabled, storeSettings.googleSpreadsheetId, triggerSync]);
+  }, [incomes, expenses, attendances, leaves, employees, sales, storeSettings.autoSyncEnabled, storeSettings.googleSpreadsheetId, triggerSync]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
