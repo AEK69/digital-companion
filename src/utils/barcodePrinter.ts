@@ -7,6 +7,9 @@ interface BarcodeLabelData {
   storeInfo?: { name: string };
 }
 
+// Format number with comma
+const formatNumber = (num: number) => num.toLocaleString('en-US');
+
 // Generate barcode label PDF for printing
 export const generateBarcodeLabel = (data: BarcodeLabelData, labelSize: '50x30' | '40x25' = '50x30') => {
   const { product, quantity = 1, storeInfo } = data;
@@ -29,23 +32,18 @@ export const generateBarcodeLabel = (data: BarcodeLabelData, labelSize: '50x30' 
   for (let i = 0; i < quantity; i++) {
     const yOffset = i * (size.height + 2);
     
-    // Add new page for each label after the first
-    if (i > 0) {
-      // Just continue on same page with offset
-    }
-    
     const margin = 2;
-    let y = yOffset + 3;
+    let y = yOffset + 4;
     
     // Product name (truncated if too long)
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    const productName = product.name.length > 20 
-      ? product.name.substring(0, 20) + '...' 
+    const productName = product.name.length > 18 
+      ? product.name.substring(0, 18) + '..' 
       : product.name;
     doc.text(productName, size.width / 2, y, { align: 'center' });
     
-    y += 4;
+    y += 5;
     
     // Barcode visualization (using Code 128 style bars)
     if (product.barcode) {
@@ -79,24 +77,24 @@ export const generateBarcodeLabel = (data: BarcodeLabelData, labelSize: '50x30' 
       doc.rect(currentX + barWidth, y, barWidth, barcodeHeight, 'F');
       doc.rect(currentX + barWidth * 3, y, barWidth, barcodeHeight, 'F');
       
-      y += barcodeHeight + 2;
+      y += barcodeHeight + 3;
       
       // Barcode number
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(product.barcode, size.width / 2, y, { align: 'center' });
-      y += 3;
+      y += 4;
     }
     
     // Price
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text(`₭${product.selling_price.toLocaleString()}`, size.width / 2, y, { align: 'center' });
+    doc.text(`${formatNumber(product.selling_price)} LAK`, size.width / 2, y, { align: 'center' });
     
-    // Store name (if provided)
+    // Store name (if provided and 50x30 size)
     if (storeInfo && labelSize === '50x30') {
       y += 4;
-      doc.setFontSize(5);
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
       doc.text(storeInfo.name, size.width / 2, y, { align: 'center' });
     }
@@ -170,15 +168,15 @@ export const printMultipleBarcodes = (products: Product[], quantityPerProduct: n
       doc.rect(x, y, labelWidth, labelHeight);
       
       // Product name
-      let labelY = y + 5;
-      doc.setFontSize(7);
+      let labelY = y + 6;
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      const productName = product.name.length > 22 
-        ? product.name.substring(0, 22) + '...' 
+      const productName = product.name.length > 20 
+        ? product.name.substring(0, 20) + '..' 
         : product.name;
       doc.text(productName, x + labelWidth / 2, labelY, { align: 'center' });
       
-      labelY += 4;
+      labelY += 5;
       
       // Barcode placeholder (simplified)
       if (product.barcode) {
@@ -198,23 +196,23 @@ export const printMultipleBarcodes = (products: Product[], quantityPerProduct: n
           currentX += barWidth;
         }
         
-        labelY += barcodeHeight + 2;
+        labelY += barcodeHeight + 3;
         
         // Barcode number
-        doc.setFontSize(6);
+        doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         doc.text(product.barcode, x + labelWidth / 2, labelY, { align: 'center' });
-        labelY += 3;
+        labelY += 4;
       }
       
       // Price
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`₭${product.selling_price.toLocaleString()}`, x + labelWidth / 2, labelY, { align: 'center' });
+      doc.text(`${product.selling_price.toLocaleString()} LAK`, x + labelWidth / 2, labelY, { align: 'center' });
       
       // Store name
       if (storeInfo) {
-        labelY += 3;
+        labelY += 4;
         doc.setFontSize(5);
         doc.setFont('helvetica', 'normal');
         doc.text(storeInfo.name, x + labelWidth / 2, labelY, { align: 'center' });
