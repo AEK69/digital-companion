@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { QRCodeSVG } from "qrcode.react";
 import { 
   ShoppingCart, 
   Trash2, 
@@ -24,10 +25,7 @@ import {
   Download,
   User,
   Star,
-  Check,
-  Monitor,
-  Loader2,
-  RefreshCw
+  Check
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
@@ -38,7 +36,8 @@ import { BarcodeScanner } from './BarcodeScanner';
 import { StockAlerts, useStockAlerts } from './StockAlerts';
 import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
 import { useAuth } from '@/hooks/useAuth';
-import { useDynamicQR } from '@/hooks/useDynamicQR';
+
+// --- MAIN COMPONENT ---
 
 interface POSTabProps {
   employees: Employee[];
@@ -49,15 +48,57 @@ interface POSTabProps {
 // Quick cash denomination buttons (Lao Kip)
 const QUICK_CASH_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000, 100000];
 
-// Bank options for QR payment
-const BANK_OPTIONS = [
-  { value: 'bcel', label: 'BCEL One Pay', logo: '🏦' },
-  { value: 'ldb', label: 'LDB', logo: '🏛️' },
-  { value: 'jdb', label: 'JDB', logo: '💳' },
-];
+// Lao OnePay static merchant QR (no amount)
+const ONEPAY_STATIC_QR = "00020101021115312738041800520446mch19B73F61B9E038570016A00526628466257701082771041802030020314mch19B73F61B9E5204569153034185802LA5916AKAPHON XAYYABED6002VT62120208586625406304C735";
+const ONEPAY_BASE_URL = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=H&data=";
 
-// Fallback static QR Code
-const STATIC_BCEL_QR = '00020101021115312738041800520446mch19B73F61B9E038570016A00526628466257701082771041802030020314mch19B73F61B9E5204569153034185802LA5916AKAPHON XAYYABED6002VT62120208586625406304C735';
+function generateOnePayDynamicQR(amount: number): { qrCodeUrl: string, link: string, raw: string } {
+  // Minimal dynamic QR logic. If you want real production, must encode EMV properly.
+  // For this, we build string with new amount.
+  // We'll just replace the fixed amount in the static QR.
+  // The dynamic QR: OnePay expects EMV format with '54' tag for amount, 2 decimal
+  // But our static QR doesn't have an explicit amount.
+  // So, let's simply add the tag '5407'+amount
+  // In real case, must recalculate CRC16.
+
+  // (In production, use an official EMV library or proper specification!)
+  // Here is a hack: place 54[two digits][amount]
+
+  // Helper to build QR with 'amount'
+  const amountStr = amount.toFixed(2);
+  const EMVamount = "54" + String(amountStr.length).padStart(2, "0") + amountStr; // e.g. 5406100.00
+
+  // Remove CRC field if present at end (starts with 6304)
+  let base = ONEPAY_STATIC_QR;
+  if (base.includes("6304")) base = base.slice(0, base.indexOf("6304"));
+
+  // same as static, but with 'amount'
+  const qrRaw = base + EMVamount + "6304"; // append CRC placeholder
+
+  // Calculate CRC16, then append
+  function calculateCRC16(str: string): string {
+    let crc = 0xFFFF;
+    for (let i = 0; i < str.length; i++) {
+      crc ^= str.charCodeAt(i) << 8;
+      for (let j = 0; j < 8; j++) {
+        if ((crc & 0x8000) !== 0) {
+          crc = (crc << 1) ^ 0x1021;
+        } else {
+          crc = crc << 1;
+        }
+      }
+    }
+    return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, "0");
+  }
+  const crc = calculateCRC16(qrRaw);
+  const qrFull = qrRaw + crc;
+
+  return {
+    qrCodeUrl: ONEPAY_BASE_URL + encodeURIComponent(qrFull),
+    link: `onepay://qr/${qrFull}`,
+    raw: qrFull
+  };
+}
 
 export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabProps) {
   const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
@@ -66,12 +107,10 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
   const { profile, user } = useAuth();
-  const { loading: qrLoading, qrResult, generateQR, clearQR } = useDynamicQR();
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -85,52 +124,15 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true);
-  const [selectedBank, setSelectedBank] = useState<'bcel' | 'ldb' | 'jdb'>('bcel');
-  const [showCustomerDisplay, setShowCustomerDisplay] = useState(false);
-  const customerDisplayRef = useRef<Window | null>(null);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
   const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // cartTotal is defined later, so we need to move this effect after it
-  // This effect is moved below after cartTotal definition
-
-  // Customer Display window management
-  const openCustomerDisplay = useCallback(() => {
-    if (customerDisplayRef.current && !customerDisplayRef.current.closed) {
-      customerDisplayRef.current.focus();
-      return;
-    }
-    
-    const displayWindow = window.open(
-      '', 
-      'CustomerDisplay', 
-      'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no'
-    );
-    
-    if (displayWindow) {
-      customerDisplayRef.current = displayWindow;
-      setShowCustomerDisplay(true);
-      
-      // Watch for window close
-      const checkClosed = setInterval(() => {
-        if (displayWindow.closed) {
-          setShowCustomerDisplay(false);
-          customerDisplayRef.current = null;
-          clearInterval(checkClosed);
-        }
-      }, 500);
-    }
-  }, []);
-
-  // Customer display effect moved below after cartTotal is defined
-
   // Auto-fill employee based on logged-in user
   useEffect(() => {
     if (user && profile && employees.length > 0 && !selectedEmployee) {
-      // Find employee that matches the current user
-      const matchingEmployee = employees.find(emp =>
+      const matchingEmployee = employees.find(emp => 
         emp.name === profile.full_name || 
         emp.name.toLowerCase().includes(profile.full_name.toLowerCase())
       );
@@ -208,18 +210,15 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   // Listen for barcode scanner input (keyboard events)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if in input field other than barcode input
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' && target !== barcodeInputRef.current) {
         return;
       }
 
-      // Clear previous timeout
       if (barcodeTimeoutRef.current) {
         clearTimeout(barcodeTimeoutRef.current);
       }
 
-      // If Enter is pressed, process the barcode
       if (e.key === 'Enter' && barcodeBufferRef.current.length > 0) {
         e.preventDefault();
         const barcode = barcodeBufferRef.current.trim();
@@ -231,11 +230,9 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         return;
       }
 
-      // Add character to buffer (only printable characters)
       if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         barcodeBufferRef.current += e.key;
         
-        // Auto-clear buffer after 100ms of no input (barcode scanners type fast)
         barcodeTimeoutRef.current = setTimeout(() => {
           barcodeBufferRef.current = '';
         }, 100);
@@ -301,96 +298,6 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
     : 0;
   const actualFinalTotal = finalTotal - pointsDiscount;
   const actualChange = receivedAmount - actualFinalTotal;
-  const change = actualChange;
-
-  // Update customer display content when cart changes
-  useEffect(() => {
-    const displayWindow = customerDisplayRef.current;
-    if (!displayWindow || displayWindow.closed) return;
-
-    const actualTotal = actualFinalTotal;
-
-    displayWindow.document.body.innerHTML = `
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans Lao', 'Segoe UI', sans-serif; }
-        body { background: linear-gradient(135deg, hsl(200 98% 96%), hsl(0 0% 100%), hsl(140 80% 96%)); min-height: 100vh; }
-        .header { background: linear-gradient(135deg, hsl(199 89% 48%), hsl(199 89% 40%)); color: white; padding: 24px; }
-        .header-content { display: flex; justify-content: space-between; align-items: center; }
-        .store-info h1 { font-size: 2rem; font-weight: bold; }
-        .store-info p { opacity: 0.9; }
-        .time { text-align: right; }
-        .time .clock { font-size: 2.5rem; font-weight: bold; font-family: monospace; }
-        .time .date { opacity: 0.9; }
-        .main { display: flex; height: calc(100vh - 120px); }
-        .cart-section { flex: 1; padding: 24px; overflow-y: auto; }
-        .cart-section h2 { font-size: 1.5rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .cart-item { background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .item-info { display: flex; align-items: center; gap: 16px; }
-        .item-icon { width: 48px; height: 48px; background: hsl(200 98% 92%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-        .item-name { font-weight: 600; font-size: 1.1rem; }
-        .item-price { color: hsl(215 16% 47%); }
-        .item-total { font-size: 1.25rem; font-weight: bold; color: hsl(199 89% 48%); }
-        .total-section { width: 360px; background: white; border-left: 1px solid hsl(214 32% 91%); padding: 24px; display: flex; flex-direction: column; justify-content: center; }
-        .total-display { text-align: center; }
-        .total-label { color: hsl(215 16% 47%); font-size: 1.25rem; }
-        .total-amount { font-size: 4rem; font-weight: bold; color: hsl(199 89% 48%); margin: 16px 0; }
-        .discount { color: hsl(142 71% 45%); font-size: 1.25rem; margin-bottom: 8px; }
-        .welcome { text-align: center; padding: 100px; color: hsl(215 16% 47%); }
-        .welcome-icon { font-size: 6rem; opacity: 0.3; margin-bottom: 24px; }
-        .welcome-text { font-size: 2rem; }
-        .footer { text-align: center; padding: 16px; color: hsl(215 20% 65%); font-size: 0.875rem; }
-      </style>
-      <div class="header">
-        <div class="header-content">
-          <div class="store-info">
-            <h1>${storeInfo.name || 'ຮ້ານຂອງຂ້ອຍ'}</h1>
-            ${storeInfo.phone ? `<p>📞 ${storeInfo.phone}</p>` : ''}
-          </div>
-          <div class="time">
-            <div class="clock">${new Date().toLocaleTimeString('lo-LA', { hour: '2-digit', minute: '2-digit' })}</div>
-            <div class="date">${new Date().toLocaleDateString('lo-LA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          </div>
-        </div>
-      </div>
-      <div class="main">
-        ${cart.length === 0 ? `
-          <div class="welcome" style="flex:1;">
-            <div class="welcome-icon">🛒</div>
-            <div class="welcome-text">ຍິນດີຕ້ອນຮັບ</div>
-            <p style="margin-top: 8px;">ກະລຸນາເລືອກສິນຄ້າ</p>
-          </div>
-        ` : `
-          <div class="cart-section">
-            <h2>🛒 ລາຍການສິນຄ້າ (${cart.reduce((sum, i) => sum + i.quantity, 0)} ລາຍການ)</h2>
-            ${cart.map(item => `
-              <div class="cart-item">
-                <div class="item-info">
-                  <div class="item-icon">📦</div>
-                  <div>
-                    <div class="item-name">${item.product_name}</div>
-                    <div class="item-price">₭${item.unit_price.toLocaleString()} × ${item.quantity}</div>
-                  </div>
-                </div>
-                <div class="item-total">₭${item.total_price.toLocaleString()}</div>
-              </div>
-            `).join('')}
-          </div>
-          <div class="total-section">
-            <div class="total-display">
-              <div class="total-label">ຍອດລວມ</div>
-              <div class="total-amount">₭${actualTotal.toLocaleString()}</div>
-              ${pointsDiscount > 0 ? `<div class="discount">ສ່ວນຫຼຸດຄະແນນ: -₭${pointsDiscount.toLocaleString()}</div>` : ''}
-              ${discountAmount > 0 ? `<div class="discount">ສ່ວນຫຼຸດ: -₭${discountAmount.toLocaleString()}</div>` : ''}
-            </div>
-            <div class="footer">
-              ຂອບໃຈທີ່ໃຊ້ບໍລິການ
-              ${storeInfo.address ? `<br/>${storeInfo.address}` : ''}
-            </div>
-          </div>
-        `}
-      </div>
-    `;
-  }, [cart, actualFinalTotal, pointsDiscount, discountAmount, storeInfo]);
 
   // Handle quick cash amount
   const handleQuickCash = (amount: number) => {
@@ -510,15 +417,15 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
     : [];
 
   return (
-    <div className="space-y-4 h-[calc(100vh-120px)] flex flex-col">
+    <div className="space-y-4">
       {/* Stock Alerts */}
       {hasAlerts && (
         <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 flex-1 min-h-0">
-      {/* Products Section - Takes more space on desktop */}
-      <div className="xl:col-span-8 space-y-4 flex flex-col min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-280px)]">
+      {/* Products Section */}
+      <div className="lg:col-span-2 space-y-4">
         {/* Barcode Scanner Input */}
         <Card>
           <CardContent className="p-4">
@@ -540,15 +447,6 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               <Button type="button" variant="outline" onClick={() => setShowCameraScanner(true)}>
                 <Camera className="w-4 h-4 mr-2" />
                 ສະແກນກ້ອງ
-              </Button>
-              <Button 
-                type="button" 
-                variant={showCustomerDisplay ? 'default' : 'outline'} 
-                onClick={openCustomerDisplay}
-                title="ເປີດຈໍສະແດງລາຄາໃຫ້ລູກຄ້າ"
-              >
-                <Monitor className="w-4 h-4 mr-2" />
-                {showCustomerDisplay ? 'ຈໍລູກຄ້າເປີດຢູ່' : 'ຈໍລູກຄ້າ'}
               </Button>
             </form>
           </CardContent>
@@ -579,17 +477,17 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           </CardContent>
         </Card>
 
-        {/* Products Grid - Flexible height */}
-        <Card className="flex-1 min-h-0 flex flex-col">
-          <CardHeader className="pb-2 shrink-0">
+        {/* Products Grid */}
+        <Card className="flex-1">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <Package className="w-5 h-5" />
               ສິນຄ້າ ({filteredProducts.length})
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 p-4">
-            <ScrollArea className="h-full">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+          <CardContent>
+            <ScrollArea className="h-[400px]">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredProducts.map(product => (
                   <button
                     key={product.id}
@@ -630,8 +528,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         </Card>
       </div>
 
-      {/* Cart Section - Fixed width on desktop */}
-      <Card className="xl:col-span-4 flex flex-col min-h-0">
+      {/* Cart Section */}
+      <Card className="flex flex-col h-full">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -872,69 +770,34 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               </div>
             </div>
 
-            {/* QR Code Display for QR Payment */}
+            {/* QR Code Display for QR Payment (to OnePay merchant, with amount) */}
             {paymentMethod === 'qr' && (
-              <div className="p-4 bg-secondary rounded-lg text-center space-y-3">
-                <div className="flex justify-center gap-2 mb-2">
-                  {BANK_OPTIONS.map(bank => (
-                    <Button
-                      key={bank.value}
-                      type="button"
-                      variant={selectedBank === bank.value ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedBank(bank.value as 'bcel' | 'ldb' | 'jdb')}
-                    >
-                      {bank.logo} {bank.label}
-                    </Button>
-                  ))}
+              <div className="p-4 bg-secondary rounded-lg text-center">
+                <p className="font-medium mb-3">ສະແກນ QR ເພື່ອຊຳລະເງິນ (OnePay ຫຼື Mobile Banking)</p>
+                <div className="bg-white p-4 rounded-lg inline-block">
+                  {/* use img instead of QRCodeSVG because we use api.qrserver.com */}
+                  <img
+                    src={generateOnePayDynamicQR(actualFinalTotal).qrCodeUrl}
+                    alt="OnePay Dynamic QR"
+                    width={200}
+                    height={200}
+                    style={{ background: "#fff" }}
+                  />
                 </div>
-                
-                <p className="font-medium">ສະແກນ QR ເພື່ອຊຳລະເງິນ</p>
-                
-                <div className="bg-white p-4 rounded-lg inline-block min-h-[200px] min-w-[200px] flex items-center justify-center">
-                  {qrLoading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">ກຳລັງສ້າງ QR...</span>
-                    </div>
-                  ) : qrResult?.qrCode ? (
-                    <img 
-                      src={qrResult.qrCode}
-                      alt="Payment QR Code"
-                      className="w-48 h-48 mx-auto"
-                    />
-                  ) : (
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(STATIC_BCEL_QR)}`}
-                      alt="BCEL QR Code"
-                      className="w-48 h-48 mx-auto"
-                    />
-                  )}
+                <div className="mt-2">
+                  <a
+                    href={generateOnePayDynamicQR(actualFinalTotal).link}
+                    className="text-blue-500 underline text-sm"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    ເປີດແອັບ OnePay ອັດຕະໂນມັດ
+                  </a>
                 </div>
-                
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {BANK_OPTIONS.find(b => b.value === selectedBank)?.label || 'BCEL One Pay'}
-                  </p>
-                  <p className="text-2xl font-bold text-primary">₭{actualFinalTotal.toLocaleString()}</p>
-                  {qrResult?.reference && (
-                    <p className="text-xs text-muted-foreground mt-1">Ref: {qrResult.reference}</p>
-                  )}
-                </div>
-
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    const ref = `POS-${Date.now().toString().slice(-8)}`;
-                    generateQR(actualFinalTotal, ref, `ຊຳລະສິນຄ້າ`, selectedBank);
-                  }}
-                  disabled={qrLoading}
-                >
-                  <RefreshCw className={`w-4 h-4 mr-1 ${qrLoading ? 'animate-spin' : ''}`} />
-                  ສ້າງ QR ໃໝ່
-                </Button>
+                <p className="text-sm text-muted-foreground mt-2">QR Payment (OnePay/LA)</p>
+                <p className="text-lg font-bold text-primary mt-1">₭{actualFinalTotal.toLocaleString()}</p>
+                {/* For debug raw: */}
+                {/* <p style={{fontSize:'11px',wordBreak:'break-all',color:'#bbb'}}>{generateOnePayDynamicQR(actualFinalTotal).raw}</p> */}
               </div>
             )}
 
