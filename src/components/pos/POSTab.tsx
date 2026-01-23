@@ -440,7 +440,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-280px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 md:gap-4 h-[calc(100vh-220px)] md:h-[calc(100vh-280px)]">
       {/* Products Section */}
       <div className="lg:col-span-2 space-y-4">
         {/* Barcode Scanner Input */}
@@ -503,14 +503,33 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <ScrollArea className="h-[300px] md:h-[400px]">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                 {filteredProducts.map(product => (
                   <button
                     key={product.id}
-                    onClick={() => addToCart(product)}
+                    onClick={() => {
+                      const now = Date.now();
+                      const lastTap = lastTapRef.current;
+                      
+                      // Double-tap detection (within 300ms)
+                      if (lastTap && lastTap.productId === product.id && (now - lastTap.time) < 300) {
+                        // Double-tap: open variants dialog
+                        setVariantProduct(product);
+                        setShowVariantDialog(true);
+                        lastTapRef.current = null;
+                      } else {
+                        // Single tap: add to cart
+                        lastTapRef.current = { productId: product.id, time: now };
+                        setTimeout(() => {
+                          if (lastTapRef.current?.productId === product.id && lastTapRef.current?.time === now) {
+                            addToCart(product);
+                          }
+                        }, 300);
+                      }
+                    }}
                     disabled={product.stock_quantity <= 0}
-                    className={`p-3 rounded-lg border text-left transition-all hover:shadow-md ${
+                    className={`p-2 rounded-lg border text-left transition-all hover:shadow-md ${
                       product.stock_quantity <= 0 
                         ? 'opacity-50 cursor-not-allowed bg-muted' 
                         : 'hover:border-primary cursor-pointer'
@@ -520,22 +539,22 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                       <img 
                         src={product.image_url} 
                         alt={product.name}
-                        className="w-full h-20 object-cover rounded mb-2"
+                        className="w-full h-12 md:h-16 object-cover rounded mb-1"
                       />
                     ) : (
-                      <div className="w-full h-20 bg-muted rounded mb-2 flex items-center justify-center">
-                        <Package className="w-8 h-8 text-muted-foreground" />
+                      <div className="w-full h-12 md:h-16 bg-muted rounded mb-1 flex items-center justify-center">
+                        <Package className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground" />
                       </div>
                     )}
-                    <p className="font-medium text-sm line-clamp-2">{product.name}</p>
-                    <p className="text-primary font-bold text-sm mt-1">
+                    <p className="font-medium text-xs line-clamp-2">{product.name}</p>
+                    <p className="text-primary font-bold text-xs mt-0.5">
                       ₭{product.selling_price.toLocaleString()}
                     </p>
                     <Badge 
                       variant={product.stock_quantity <= product.min_stock_level ? 'destructive' : 'secondary'}
-                      className="mt-1 text-xs"
+                      className="mt-0.5 text-[10px] px-1"
                     >
-                      ເຫຼືອ {product.stock_quantity} {product.unit}
+                      {product.stock_quantity} {product.unit}
                     </Badge>
                   </button>
                 ))}
@@ -637,18 +656,54 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         </CardContent>
       </Card>
 
+      {/* Product Variant Dialog */}
+      {variantProduct && (
+        <ProductVariantDialog
+          isOpen={showVariantDialog}
+          onClose={() => {
+            setShowVariantDialog(false);
+            setVariantProduct(null);
+          }}
+          product={variantProduct}
+          onSelectVariant={(variant) => {
+            // Add variant to cart with its specific price
+            setCart(prev => {
+              const existing = prev.find(item => item.product_id === variant.id);
+              if (existing) {
+                return prev.map(item =>
+                  item.product_id === variant.id
+                    ? { ...item, quantity: item.quantity + 1, total_price: (item.quantity + 1) * item.unit_price }
+                    : item
+                );
+              }
+              return [...prev, {
+                product_id: variant.id,
+                product_name: `${variantProduct.name} - ${Object.values(variant.attributes || {}).join('/')}`,
+                barcode: variant.barcode,
+                quantity: 1,
+                unit_price: variant.selling_price,
+                total_price: variant.selling_price,
+                stock_quantity: variant.stock_quantity,
+              }];
+            });
+            setShowVariantDialog(false);
+            setVariantProduct(null);
+          }}
+        />
+      )}
+
       {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
-        <DialogContent className="max-w-lg max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>ຊຳລະເງິນ</DialogTitle>
+        <DialogContent className="max-w-sm max-h-[95vh] overflow-y-auto p-4">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-base">ຊຳລະເງິນ</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Customer Selection */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <User className="w-4 h-4" />
+            <div className="space-y-1">
+              <Label className="flex items-center gap-1 text-xs">
+                <User className="w-3 h-3" />
                 ລູກຄ້າ (ເພື່ອສະສົມຄະແນນ)
               </Label>
               <div className="relative">
@@ -659,25 +714,26 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                     if (!e.target.value) setSelectedCustomer(null);
                   }}
                   placeholder="ຄົ້ນຫາດ້ວຍຊື່ ຫຼື ເບີໂທ..."
+                  className="h-8 text-sm"
                 />
                 {customerSearch && filteredCustomers.length > 0 && !selectedCustomer && (
-                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                    {filteredCustomers.slice(0, 5).map(customer => (
+                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                    {filteredCustomers.slice(0, 3).map(customer => (
                       <button
                         key={customer.id}
                         type="button"
-                        className="w-full px-3 py-2 text-left hover:bg-muted flex justify-between items-center"
+                        className="w-full px-2 py-1.5 text-left hover:bg-muted flex justify-between items-center"
                         onClick={() => {
                           setSelectedCustomer(customer);
                           setCustomerSearch(customer.name);
                         }}
                       >
                         <div>
-                          <p className="font-medium text-sm">{customer.name}</p>
-                          <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                          <p className="font-medium text-xs">{customer.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{customer.phone}</p>
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-yellow-600">
-                          <Star className="w-3 h-3 fill-current" />
+                        <div className="flex items-center gap-0.5 text-[10px] text-yellow-600">
+                          <Star className="w-2.5 h-2.5 fill-current" />
                           {customer.loyalty_points}
                         </div>
                       </button>
@@ -686,64 +742,60 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                 )}
               </div>
               {selectedCustomer && (
-                <div className="p-3 bg-secondary rounded-lg">
+                <div className="p-2 bg-secondary rounded-lg">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium">{selectedCustomer.name}</p>
-                      <p className="text-xs text-muted-foreground">{selectedCustomer.phone}</p>
+                      <p className="font-medium text-xs">{selectedCustomer.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{selectedCustomer.phone}</p>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center gap-1 text-yellow-600">
-                        <Star className="w-4 h-4 fill-current" />
+                      <div className="flex items-center gap-0.5 text-yellow-600 text-xs">
+                        <Star className="w-3 h-3 fill-current" />
                         <span className="font-bold">{selectedCustomer.loyalty_points}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">ຄະແນນ</p>
                     </div>
                   </div>
                   {selectedCustomer.loyalty_points > 0 && (
-                    <div className="mt-2 pt-2 border-t">
+                    <div className="mt-1.5 pt-1.5 border-t">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <input
                             type="checkbox"
                             id="use-points"
                             checked={usePoints}
                             onChange={(e) => setUsePoints(e.target.checked)}
-                            className="rounded border-primary"
+                            className="rounded border-primary w-3 h-3"
                           />
-                          <Label htmlFor="use-points" className="text-sm cursor-pointer">
-                            ໃຊ້ຄະແນນເປັນສ່ວນຫຼຸດ
+                          <Label htmlFor="use-points" className="text-[10px] cursor-pointer">
+                            ໃຊ້ຄະແນນ
                           </Label>
                         </div>
                         {usePoints && (
-                          <span className="text-sm text-green-600 font-medium">
+                          <span className="text-[10px] text-green-600 font-medium">
                             -₭{Math.min(selectedCustomer.loyalty_points * 100, cartTotal - discountAmount).toLocaleString()}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        (1 ຄະແນນ = ₭100 ສ່ວນຫຼຸດ)
-                      </p>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="text-center p-4 bg-primary/10 rounded-lg">
-              <p className="text-sm text-muted-foreground">ຍອດຮວມສຸດທິ</p>
-              <p className="text-3xl font-bold text-primary">₭{actualFinalTotal.toLocaleString()}</p>
+            <div className="text-center p-3 bg-primary/10 rounded-lg">
+              <p className="text-xs text-muted-foreground">ຍອດຮວມສຸດທິ</p>
+              <p className="text-2xl font-bold text-primary">₭{actualFinalTotal.toLocaleString()}</p>
               {pointsDiscount > 0 && (
-                <p className="text-sm text-green-600">
-                  (ສ່ວນຫຼຸດຈາກຄະແນນ: ₭{pointsDiscount.toLocaleString()})
+                <p className="text-xs text-green-600">
+                  (ສ່ວນຫຼຸດຄະແນນ: ₭{pointsDiscount.toLocaleString()})
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>ພະນັກງານ</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">ພະນັກງານ</Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-sm">
                   <SelectValue placeholder="ເລືອກພະນັກງານ" />
                 </SelectTrigger>
                 <SelectContent>
@@ -755,104 +807,107 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             </div>
 
             <div className="space-y-2">
-              <Label>ວິທີຊຳລະ</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <Label className="text-xs">ວິທີຊຳລະ</Label>
+              <div className="grid grid-cols-3 gap-1.5">
                 <Button
                   type="button"
                   variant={paymentMethod === 'cash' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('cash')}
-                  className="flex flex-col h-auto py-3"
+                  className="flex flex-col h-auto py-2"
+                  size="sm"
                 >
-                  <Banknote className="w-5 h-5 mb-1" />
-                  <span className="text-xs">ເງິນສົດ</span>
+                  <Banknote className="w-4 h-4 mb-0.5" />
+                  <span className="text-[10px]">ເງິນສົດ</span>
                 </Button>
                 <Button
                   type="button"
                   variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('transfer')}
-                  className="flex flex-col h-auto py-3"
+                  className="flex flex-col h-auto py-2"
+                  size="sm"
                 >
-                  <CreditCard className="w-5 h-5 mb-1" />
-                  <span className="text-xs">ໂອນ</span>
+                  <CreditCard className="w-4 h-4 mb-0.5" />
+                  <span className="text-[10px]">ໂອນ</span>
                 </Button>
                 <Button
                   type="button"
                   variant={paymentMethod === 'qr' ? 'default' : 'outline'}
                   onClick={() => setPaymentMethod('qr')}
-                  className="flex flex-col h-auto py-3"
+                  className="flex flex-col h-auto py-2"
+                  size="sm"
                 >
-                  <QrCode className="w-5 h-5 mb-1" />
-                  <span className="text-xs">QR Code</span>
+                  <QrCode className="w-4 h-4 mb-0.5" />
+                  <span className="text-[10px]">QR Code</span>
                 </Button>
               </div>
             </div>
 
             {/* QR Code Display for QR Payment (to OnePay merchant, with amount) */}
             {paymentMethod === 'qr' && (
-              <div className="p-4 bg-secondary rounded-lg text-center">
-                <p className="font-medium mb-3">ສະແກນ QR ເພື່ອຊຳລະເງິນ (OnePay ຫຼື Mobile Banking)</p>
-                <div className="bg-white p-4 rounded-lg inline-block">
-                  {/* use img instead of QRCodeSVG because we use api.qrserver.com */}
+              <div className="p-3 bg-secondary rounded-lg text-center">
+                <p className="text-xs font-medium mb-2">ສະແກນ QR ເພື່ອຊຳລະເງິນ</p>
+                <div className="bg-white p-2 rounded-lg inline-block">
                   <img
                     src={generateOnePayDynamicQR(actualFinalTotal).qrCodeUrl}
                     alt="OnePay Dynamic QR"
-                    width={200}
-                    height={200}
+                    width={140}
+                    height={140}
                     style={{ background: "#fff" }}
                   />
                 </div>
                 <div className="mt-2">
                   <a
                     href={generateOnePayDynamicQR(actualFinalTotal).link}
-                    className="text-blue-500 underline text-sm"
+                    className="text-primary underline text-xs"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     ເປີດແອັບ OnePay ອັດຕະໂນມັດ
                   </a>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">QR Payment (OnePay/LA)</p>
-                <p className="text-lg font-bold text-primary mt-1">₭{actualFinalTotal.toLocaleString()}</p>
-                {/* For debug raw: */}
-                {/* <p style={{fontSize:'11px',wordBreak:'break-all',color:'#bbb'}}>{generateOnePayDynamicQR(actualFinalTotal).raw}</p> */}
+                <p className="text-xs text-muted-foreground mt-1">AKAPHON XAYYABED</p>
+                <p className="text-[10px] text-muted-foreground">OnePay / BCEL / LDB</p>
+                <p className="text-base font-bold text-primary mt-1">₭{actualFinalTotal.toLocaleString()}</p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>ສ່ວນຫຼຸດ</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">ສ່ວນຫຼຸດ</Label>
                 <Input
                   type="number"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(Number(e.target.value))}
                   min={0}
                   max={cartTotal}
+                  className="h-8 text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>ເງິນທີ່ຮັບ</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">ເງິນທີ່ຮັບ</Label>
                 <Input
                   type="number"
                   value={receivedAmount}
                   onChange={(e) => setReceivedAmount(Number(e.target.value))}
                   min={0}
+                  className="h-8 text-sm"
                 />
               </div>
             </div>
 
             {/* Quick Cash Buttons */}
             {paymentMethod === 'cash' && (
-              <div className="space-y-2">
-                <Label>ກົດເລືອກເງິນດ່ວນ (₭)</Label>
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">ເງິນດ່ວນ (₭)</Label>
+                <div className="flex flex-wrap gap-1">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleExactAmount}
-                    className="text-green-600 border-green-600"
+                    className="text-green-600 border-green-600 h-7 px-2 text-xs"
                   >
-                    <Check className="w-3 h-3 mr-1" />
+                    <Check className="w-3 h-3 mr-0.5" />
                     ພໍດີ
                   </Button>
                   {QUICK_CASH_AMOUNTS.map(amount => (
@@ -862,35 +917,36 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                       variant="outline"
                       size="sm"
                       onClick={() => handleQuickCash(amount)}
+                      className="h-7 px-2 text-xs"
                     >
-                      +{amount.toLocaleString()}
+                      +{(amount / 1000)}k
                     </Button>
                   ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setReceivedAmount(0)}
+                    className="text-muted-foreground h-7 px-2 text-xs"
+                  >
+                    ລ້າງ
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setReceivedAmount(0)}
-                  className="text-muted-foreground"
-                >
-                  ລ້າງ
-                </Button>
               </div>
             )}
 
             {receivedAmount >= actualFinalTotal && paymentMethod === 'cash' && (
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
-                <p className="text-sm text-muted-foreground">ເງິນທອນ</p>
-                <p className="text-2xl font-bold text-green-600">₭{actualChange.toLocaleString()}</p>
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-center">
+                <p className="text-xs text-muted-foreground">ເງິນທອນ</p>
+                <p className="text-lg font-bold text-green-600">₭{actualChange.toLocaleString()}</p>
               </div>
             )}
 
             {/* Print Receipt Option */}
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-              <Label htmlFor="print-receipt" className="flex items-center gap-2 cursor-pointer">
-                <Printer className="w-4 h-4" />
-                ພິມໃບບິນຫຼັງຂາຍ
+            <div className="flex items-center justify-between p-2 bg-secondary/50 rounded-lg">
+              <Label htmlFor="print-receipt" className="flex items-center gap-1.5 cursor-pointer text-xs">
+                <Printer className="w-3.5 h-3.5" />
+                ພິມໃບບິນ
               </Label>
               <Switch
                 id="print-receipt"
