@@ -31,6 +31,7 @@ const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPe
   { id: 'pos', label: 'ຂາຍສິນຄ້າ', icon: ShoppingCart },
   { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
   { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
+  { id: 'promotions', label: 'ໂປຣໂມຊັນ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'customers', label: 'ລູກຄ້າ', icon: UserCheck, requiredPermission: 'canViewFinance' },
   { id: 'reorder', label: 'ສັ່ງຊື້', icon: AlertTriangle, requiredPermission: 'canManageEmployees' },
   { id: 'salesreport', label: 'ລາຍງານຂາຍ', icon: Receipt, requiredPermission: 'canViewFinance' },
