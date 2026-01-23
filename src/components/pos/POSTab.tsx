@@ -25,15 +25,20 @@ import {
   Download,
   User,
   Star,
-  Check
+  Check,
+  Ticket
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
 import { useCustomers, Customer } from '@/hooks/useCustomers';
+import { usePromotions, Coupon } from '@/hooks/usePromotions';
+import { useOfflineSales } from '@/hooks/useOfflineSales';
 import { useToast } from '@/hooks/use-toast';
 import { Employee, StoreInfo } from '@/types';
 import { BarcodeScanner } from './BarcodeScanner';
 import { StockAlerts, useStockAlerts } from './StockAlerts';
+import { OfflineIndicator } from './OfflineIndicator';
+import { ProductVariantDialog } from './ProductVariantDialog';
 import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -104,6 +109,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
   const { createSale, getSaleItems } = useSales();
   const { customers, getCustomerByPhone, redeemPoints } = useCustomers();
+  const { validateCoupon, calculateCouponDiscount, calculatePromotions } = usePromotions();
+  const { isOnline, addOfflineSale, shouldUseOffline } = useOfflineSales();
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
   const { profile, user } = useAuth();
@@ -124,6 +131,16 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [lastSale, setLastSale] = useState<{ sale: any; items: any[] } | null>(null);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [shouldPrintReceipt, setShouldPrintReceipt] = useState(true);
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  
+  // Variant dialog state
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  const [showVariantDialog, setShowVariantDialog] = useState(false);
+  const lastTapRef = useRef<{ productId: string; time: number } | null>(null);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
