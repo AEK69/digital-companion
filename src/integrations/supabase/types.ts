@@ -64,6 +64,60 @@ export type Database = {
           },
         ]
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean
+          max_discount_amount: number | null
+          min_purchase_amount: number | null
+          name: string
+          start_date: string
+          type: string
+          updated_at: string
+          usage_limit: number | null
+          used_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          min_purchase_amount?: number | null
+          name: string
+          start_date?: string
+          type: string
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_amount?: number | null
+          min_purchase_amount?: number | null
+          name?: string
+          start_date?: string
+          type?: string
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value?: number
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -303,6 +357,33 @@ export type Database = {
           },
         ]
       }
+      offline_sales_queue: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          sale_data: Json
+          status: string
+          synced_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sale_data: Json
+          status?: string
+          synced_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          sale_data?: Json
+          status?: string
+          synced_at?: string | null
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
@@ -326,6 +407,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      product_variants: {
+        Row: {
+          attributes: Json
+          barcode: string | null
+          cost_price: number
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          product_id: string
+          selling_price: number
+          sku: string | null
+          stock_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          attributes?: Json
+          barcode?: string | null
+          cost_price?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          product_id: string
+          selling_price?: number
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          attributes?: Json
+          barcode?: string | null
+          cost_price?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          product_id?: string
+          selling_price?: number
+          sku?: string | null
+          stock_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -410,6 +544,60 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      promotions: {
+        Row: {
+          applicable_categories: string[] | null
+          applicable_products: string[] | null
+          buy_quantity: number | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          get_quantity: number | null
+          id: string
+          is_active: boolean
+          min_purchase_amount: number | null
+          name: string
+          start_date: string
+          type: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          buy_quantity?: number | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          get_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          min_purchase_amount?: number | null
+          name: string
+          start_date?: string
+          type: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          applicable_categories?: string[] | null
+          applicable_products?: string[] | null
+          buy_quantity?: number | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          get_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          min_purchase_amount?: number | null
+          name?: string
+          start_date?: string
+          type?: string
+          updated_at?: string
+          value?: number
         }
         Relationships: []
       }
