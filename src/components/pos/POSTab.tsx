@@ -487,42 +487,53 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   };
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden p-2">
       {/* Offline Indicator */}
       <OfflineIndicator />
       
       {/* Stock Alerts - Only show if there are alerts */}
       {hasAlerts && (
-        <div className="mb-1 shrink-0">
+        <div className="mb-2 shrink-0">
           <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
         </div>
       )}
 
       {/* Main POS Grid - Full screen optimized */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-1 min-h-0 overflow-hidden">
-        {/* Products Section - Takes 3/4 of space on desktop, full on mobile */}
-        <div className="lg:col-span-3 flex flex-col min-h-0 gap-1 overflow-hidden">
-          {/* Barcode Scanner Input - Ultra compact */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-3 min-h-0 overflow-hidden">
+        {/* Products Section - Takes 3/5 of space on desktop, full on mobile */}
+        <div className="lg:col-span-3 flex flex-col min-h-0 gap-2 overflow-hidden">
+          {/* Barcode Scanner & Search Combined */}
           <Card className="shrink-0">
-            <CardContent className="p-1">
-              <form onSubmit={handleBarcodeSubmit} className="flex gap-1">
+            <CardContent className="p-3">
+              <div className="flex gap-2">
+                <form onSubmit={handleBarcodeSubmit} className="flex gap-2 flex-1">
+                  <div className="relative flex-1">
+                    <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      ref={barcodeInputRef}
+                      value={barcodeInput}
+                      onChange={(e) => setBarcodeInput(e.target.value)}
+                      placeholder="ສະແກນບາໂຄ້ດ..."
+                      className="pl-10 h-12 text-base"
+                    />
+                  </div>
+                  <Button type="submit" variant="secondary" size="lg" className="h-12 w-12 p-0">
+                    <Search className="w-5 h-5" />
+                  </Button>
+                  <Button type="button" variant="outline" size="lg" className="h-12 w-12 p-0" onClick={() => setShowCameraScanner(true)}>
+                    <Camera className="w-5 h-5" />
+                  </Button>
+                </form>
                 <div className="relative flex-1">
-                  <Barcode className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
-                    ref={barcodeInputRef}
-                    value={barcodeInput}
-                    onChange={(e) => setBarcodeInput(e.target.value)}
-                    placeholder="ສະແກນບາໂຄ້ດ..."
-                    className="pl-6 h-7 text-[10px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ຄົ້ນຫາສິນຄ້າ..."
+                    className="pl-10 h-12 text-base"
                   />
                 </div>
-                <Button type="submit" variant="secondary" size="sm" className="h-7 w-7 p-0">
-                  <Search className="w-3 h-3" />
-                </Button>
-                <Button type="button" variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setShowCameraScanner(true)}>
-                  <Camera className="w-3 h-3" />
-                </Button>
-              </form>
+              </div>
             </CardContent>
           </Card>
 
@@ -535,32 +546,17 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             }}
           />
 
-          {/* Search - Ultra compact */}
-          <Card className="shrink-0">
-            <CardContent className="p-1">
-              <div className="relative">
-                <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="ຄົ້ນຫາສິນຄ້າ..."
-                  className="pl-6 h-7 text-[10px]"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Products Grid - Maximized space */}
+          {/* Products Grid - Maximized space with scrollable container */}
           <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <CardHeader className="py-1 px-1.5 shrink-0">
-              <CardTitle className="text-[10px] flex items-center gap-1">
-                <Package className="w-3 h-3" />
+            <CardHeader className="py-3 px-4 shrink-0 border-b">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Package className="w-5 h-5" />
                 ສິນຄ້າ ({filteredProducts.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-1">
+            <CardContent className="flex-1 p-3 min-h-0 overflow-hidden">
+              <ScrollArea className="h-full pr-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 pb-4">
                   {filteredProducts.map(product => (
                     <button
                       key={product.id}
@@ -582,7 +578,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                         }
                       }}
                       disabled={product.stock_quantity <= 0}
-                      className={`p-1 rounded border text-left transition-all hover:shadow-sm ${
+                      className={`p-3 rounded-lg border-2 text-left transition-all hover:shadow-md ${
                         product.stock_quantity <= 0 
                           ? 'opacity-50 cursor-not-allowed bg-muted' 
                           : 'hover:border-primary cursor-pointer active:scale-95'
@@ -592,24 +588,24 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                         <img 
                           src={product.image_url} 
                           alt={product.name}
-                          className="w-full aspect-square object-cover rounded mb-0.5"
+                          className="w-full aspect-square object-cover rounded-lg mb-2"
                         />
                       ) : (
-                        <div className="w-full aspect-square bg-muted rounded mb-0.5 flex items-center justify-center">
-                          <Package className="w-4 h-4 text-muted-foreground" />
+                        <div className="w-full aspect-square bg-muted rounded-lg mb-2 flex items-center justify-center">
+                          <Package className="w-10 h-10 text-muted-foreground" />
                         </div>
                       )}
-                      <p className="font-medium text-[8px] leading-tight truncate" title={product.name}>
+                      <p className="font-semibold text-sm leading-tight truncate" title={product.name}>
                         {product.name}
                       </p>
-                      <p className="text-primary font-bold text-[8px] truncate">
+                      <p className="text-primary font-bold text-lg mt-1">
                         ₭{product.selling_price.toLocaleString()}
                       </p>
                       <Badge 
                         variant={product.stock_quantity <= product.min_stock_level ? 'destructive' : 'secondary'}
-                        className="text-[6px] px-0.5 py-0 h-2.5 w-fit"
+                        className="text-xs px-2 py-0.5 mt-1"
                       >
-                        {product.stock_quantity}
+                        ສະຕ໊ອກ: {product.stock_quantity}
                       </Badge>
                     </button>
                   ))}
@@ -619,110 +615,115 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           </Card>
         </div>
 
-        {/* Cart Section - Fixed width on mobile, 1/4 on desktop */}
-        <Card className="lg:col-span-1 flex flex-col min-h-0 overflow-hidden">
-          <CardHeader className="py-1 px-1.5 shrink-0">
-            <CardTitle className="flex items-center justify-between text-[10px]">
-              <span className="flex items-center gap-1">
-                <ShoppingCart className="w-3 h-3" />
-                ຕະກ້າ ({cart.reduce((sum, i) => sum + i.quantity, 0)})
+        {/* Cart Section - Fixed width on mobile, 2/5 on desktop with scrollable container */}
+        <Card className="lg:col-span-2 flex flex-col min-h-0 overflow-hidden">
+          <CardHeader className="py-3 px-4 shrink-0 border-b">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5" />
+                ຕະກ້າ ({cart.reduce((sum, i) => sum + i.quantity, 0)} ລາຍການ)
               </span>
               {cart.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearCart} className="h-5 px-1 text-[8px]">
-                  <Trash2 className="w-2.5 h-2.5 mr-0.5" />
+                <Button variant="ghost" size="sm" onClick={clearCart} className="h-8 px-3 text-sm">
+                  <Trash2 className="w-4 h-4 mr-1" />
                   ລ້າງ
                 </Button>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-1 min-h-0 overflow-hidden">
-            <ScrollArea className="flex-1 mb-1">
-              {cart.length === 0 ? (
-                <div className="text-center text-muted-foreground py-3">
-                  <ShoppingCart className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-[9px]">ຍັງບໍ່ມີສິນຄ້າ</p>
-                </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {cart.map(item => (
-                    <div 
-                      key={item.product_id} 
-                      className="flex items-center gap-0.5 p-1 rounded bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
-                      onClick={() => {
-                        setSelectedCartItem(item);
-                        setShowCartItemSelector(true);
-                      }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[9px] truncate" title={item.product_name}>{item.product_name}</p>
-                        <p className="text-[7px] text-muted-foreground">
-                          ₭{item.unit_price.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="h-4 w-4"
-                          onClick={() => updateCartItemQuantity(item.product_id, -1)}
-                        >
-                          <Minus className="w-2 h-2" />
-                        </Button>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => setCartItemQuantity(item.product_id, parseInt(e.target.value) || 0)}
-                          className="w-6 h-4 text-center text-[8px] p-0"
-                          min={1}
-                          max={item.stock_quantity}
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="h-4 w-4"
-                          onClick={() => updateCartItemQuantity(item.product_id, 1)}
-                        >
-                          <Plus className="w-2 h-2" />
-                        </Button>
-                      </div>
-                      <p className="font-medium text-[8px] w-10 text-right shrink-0">
-                        ₭{item.total_price.toLocaleString()}
-                      </p>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-4 w-4 text-destructive shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFromCart(item.product_id);
+          <CardContent className="flex-1 flex flex-col p-3 min-h-0 overflow-hidden">
+            {/* Scrollable cart items container with reserved space at bottom */}
+            <ScrollArea className="flex-1 mb-3">
+              <div className="pr-2 pb-4">
+                {cart.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-12">
+                    <ShoppingCart className="w-16 h-16 mx-auto mb-3 opacity-50" />
+                    <p className="text-lg">ຍັງບໍ່ມີສິນຄ້າໃນຕະກ້າ</p>
+                    <p className="text-sm mt-1">ກົດສິນຄ້າເພື່ອເພີ່ມລົງຕະກ້າ</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {cart.map(item => (
+                      <div 
+                        key={item.product_id} 
+                        className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors border"
+                        onClick={() => {
+                          setSelectedCartItem(item);
+                          setShowCartItemSelector(true);
                         }}
                       >
-                        <Trash2 className="w-2 h-2" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-base truncate" title={item.product_name}>{item.product_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            ₭{item.unit_price.toLocaleString()} / ຊິ້ນ
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-10 w-10"
+                            onClick={() => updateCartItemQuantity(item.product_id, -1)}
+                          >
+                            <Minus className="w-5 h-5" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => setCartItemQuantity(item.product_id, parseInt(e.target.value) || 0)}
+                            className="w-16 h-10 text-center text-lg font-bold"
+                            min={1}
+                            max={item.stock_quantity}
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-10 w-10"
+                            onClick={() => updateCartItemQuantity(item.product_id, 1)}
+                          >
+                            <Plus className="w-5 h-5" />
+                          </Button>
+                        </div>
+                        <p className="font-bold text-lg w-28 text-right shrink-0 text-primary">
+                          ₭{item.total_price.toLocaleString()}
+                        </p>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-10 w-10 text-destructive shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFromCart(item.product_id);
+                          }}
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </ScrollArea>
 
-            {/* Coupon Code Input - Compact */}
-            <div className="border-t pt-1.5 mb-1 space-y-1">
-              <div className="flex gap-1">
+            {/* Fixed bottom section - Coupon, Summary, and Checkout */}
+            <div className="shrink-0 border-t pt-3 space-y-3">
+              {/* Coupon Code Input */}
+              <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     placeholder="ລະຫັດສ່ວນຫຼຸດ..."
-                    className="pl-5 h-6 text-[10px]"
+                    className="pl-9 h-10 text-sm"
                     disabled={!!appliedCoupon}
                   />
                 </div>
                 {appliedCoupon ? (
                   <Button 
                     variant="destructive" 
-                    size="sm" 
-                    className="h-6 px-1.5 text-[10px]"
+                    size="default" 
+                    className="h-10 px-4"
                     onClick={handleRemoveCoupon}
                   >
                     ລຶບ
@@ -730,61 +731,63 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                 ) : (
                   <Button 
                     variant="secondary" 
-                    size="sm" 
-                    className="h-6 px-1.5 text-[10px]"
+                    size="default" 
+                    className="h-10 px-4"
                     onClick={handleApplyCoupon}
                     disabled={!couponCode.trim() || applyingCoupon}
                   >
-                    ໃຊ້
+                    ໃຊ້ສ່ວນຫຼຸດ
                   </Button>
                 )}
               </div>
               {appliedCoupon && (
-                <div className="flex items-center justify-between text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5">
-                  <span className="flex items-center gap-0.5">
-                    <Ticket className="w-2.5 h-2.5" />
+                <div className="flex items-center justify-between text-sm text-primary bg-primary/10 rounded-lg px-3 py-2">
+                  <span className="flex items-center gap-2">
+                    <Ticket className="w-4 h-4" />
                     {appliedCoupon.name}
                   </span>
-                  <span>-₭{couponDiscount.toLocaleString()}</span>
+                  <span className="font-bold">-₭{couponDiscount.toLocaleString()}</span>
                 </div>
               )}
               {promotionResults.length > 0 && (
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {promotionResults.map((result, index) => (
-                    <div key={index} className="flex items-center justify-between text-[10px] text-accent-foreground bg-accent rounded px-1.5 py-0.5">
-                      <span className="flex items-center gap-0.5 truncate">
-                        <Tag className="w-2.5 h-2.5 shrink-0" />
+                    <div key={index} className="flex items-center justify-between text-sm text-accent-foreground bg-accent rounded-lg px-3 py-2">
+                      <span className="flex items-center gap-2 truncate">
+                        <Tag className="w-4 h-4 shrink-0" />
                         <span className="truncate">{result.description}</span>
                       </span>
-                      <span className="shrink-0">-₭{result.discount.toLocaleString()}</span>
+                      <span className="shrink-0 font-bold">-₭{result.discount.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
 
-            {/* Cart Summary - Compact */}
-            <div className="border-t pt-1.5 space-y-1">
-              <div className="flex justify-between text-[10px]">
-                <span>ລວມ</span>
-                <span>₭{cartTotal.toLocaleString()}</span>
-              </div>
-              {totalDiscount > 0 && (
-                <div className="flex justify-between text-[10px] text-primary">
-                  <span>ສ່ວນຫຼຸດ</span>
-                  <span>-₭{totalDiscount.toLocaleString()}</span>
+              {/* Cart Summary */}
+              <div className="space-y-2 bg-muted/50 rounded-lg p-3">
+                <div className="flex justify-between text-sm">
+                  <span>ລວມທັງໝົດ</span>
+                  <span className="font-medium">₭{cartTotal.toLocaleString()}</span>
                 </div>
-              )}
-              <div className="flex justify-between font-bold text-xs">
-                <span>ຍອດຮວມ</span>
-                <span className="text-primary">₭{finalTotal.toLocaleString()}</span>
+                {totalDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-primary">
+                    <span>ສ່ວນຫຼຸດ</span>
+                    <span className="font-medium">-₭{totalDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-xl pt-2 border-t">
+                  <span>ຍອດຮວມສຸດທິ</span>
+                  <span className="text-primary">₭{finalTotal.toLocaleString()}</span>
+                </div>
               </div>
+
+              {/* Checkout Button */}
               <Button 
-                className="w-full h-8 text-xs" 
+                className="w-full h-14 text-lg font-bold" 
                 disabled={cart.length === 0}
                 onClick={() => setShowCheckout(true)}
               >
-                <CreditCard className="w-3.5 h-3.5 mr-1" />
+                <CreditCard className="w-6 h-6 mr-2" />
                 ຊຳລະເງິນ
               </Button>
             </div>
