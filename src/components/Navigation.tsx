@@ -16,7 +16,8 @@ import {
   Receipt,
   UserCheck,
   AlertTriangle,
-  LayoutDashboard
+  LayoutDashboard,
+  CalendarDays
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -34,6 +35,7 @@ const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPe
   { id: 'promotions', label: 'ໂປຣໂມຊັນ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'customers', label: 'ລູກຄ້າ', icon: UserCheck, requiredPermission: 'canViewFinance' },
   { id: 'reorder', label: 'ສັ່ງຊື້', icon: AlertTriangle, requiredPermission: 'canManageEmployees' },
+  { id: 'reservations', label: 'ຈອງໂຕະ', icon: CalendarDays, requiredPermission: 'canViewFinance' },
   { id: 'salesreport', label: 'ລາຍງານຂາຍ', icon: Receipt, requiredPermission: 'canViewFinance' },
   { id: 'attendance', label: 'ເຂົ້າ-ອອກງານ', icon: Clock, requiredPermission: 'canViewAttendance' },
   { id: 'income', label: 'ລາຍຮັບ', icon: TrendingUp, requiredPermission: 'canViewFinance' },
