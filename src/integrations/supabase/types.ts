@@ -745,6 +745,54 @@ export type Database = {
         }
         Relationships: []
       }
+      table_reservations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          date: string
+          email: string | null
+          guests: number
+          id: string
+          notes: string | null
+          phone: string | null
+          status: string
+          table_number: string | null
+          time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          date: string
+          email?: string | null
+          guests?: number
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          table_number?: string | null
+          time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          date?: string
+          email?: string | null
+          guests?: number
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          table_number?: string | null
+          time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
