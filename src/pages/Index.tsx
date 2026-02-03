@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Navigation } from '@/components/Navigation';
+import { HomeDashboard } from '@/components/HomeDashboard';
 import { AttendanceTab } from '@/components/AttendanceTab';
 import { IncomeTab } from '@/components/IncomeTab';
 import { ExpenseTab } from '@/components/ExpenseTab';
@@ -39,7 +40,7 @@ import { TabType, StoreInfo } from '@/types';
 const Index = () => {
   const { user, role, profile, loading: authLoading, permissions, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('pos');
+  const [activeTab, setActiveTab] = useState<TabType | 'home'>('home');
 
   // Database hooks
   const { storeSettings, loading: settingsLoading, updateSettings } = useStoreSettings();
@@ -158,6 +159,22 @@ const Index = () => {
     return null;
   }
 
+  // Show home dashboard if on home tab
+  if (activeTab === 'home') {
+    return (
+      <div className="min-h-screen">
+        <Header 
+          onLogout={handleLogout} 
+          userRole={role} 
+          userName={profile?.full_name}
+          storeName={storeInfo.name}
+          storeLogo={storeInfo.logo}
+        />
+        <HomeDashboard onNavigate={setActiveTab} userRole={role} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Header 
@@ -166,6 +183,7 @@ const Index = () => {
         userName={profile?.full_name}
         storeName={storeInfo.name}
         storeLogo={storeInfo.logo}
+        onHomeClick={() => setActiveTab('home')}
       />
       <Navigation 
         activeTab={activeTab} 
