@@ -173,7 +173,7 @@ const Index = () => {
         userRole={role} 
       />
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-1 py-1 lg:px-2 lg:py-2">
         {activeTab === 'dashboard' && <DashboardTab />}
         {activeTab === 'pos' && <POSTab employees={employees} storeInfo={storeInfo} onNavigateToInventory={() => setActiveTab('inventory')} />}
         {activeTab === 'products' && <ProductsManagementTab />}

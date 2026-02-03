@@ -277,13 +277,13 @@ export function ProductsManagementTab() {
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.min_stock_level);
 
   return (
-    <div className="space-y-4">
-      {/* Low Stock Warning */}
+    <div className="space-y-2 h-[calc(100vh-100px)]">
+      {/* Low Stock Warning - Compact */}
       {lowStockProducts.length > 0 && (
         <Card className="border-destructive bg-destructive/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2 text-destructive text-sm">
+              <AlertTriangle className="w-4 h-4" />
               <span className="font-medium">
                 ມີ {lowStockProducts.length} ສິນຄ້າໃກ້ໝົດສະຕ໊ອກ
               </span>
@@ -292,24 +292,24 @@ export function ProductsManagementTab() {
         </Card>
       )}
 
-      {/* Actions Bar */}
+      {/* Actions Bar - Compact */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <CardContent className="p-2">
+          <div className="flex flex-wrap gap-2 items-center justify-between">
+            <div className="relative flex-1 min-w-[150px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="ຄົ້ນຫາສິນຄ້າ..."
-                className="pl-10"
+                className="pl-8 h-8 text-sm"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {selectedProducts.length > 0 && (
-                <Button variant="secondary" onClick={handlePrintSelectedBarcodes}>
-                  <Barcode className="w-4 h-4 mr-2" />
-                  ພິມບາໂຄ້ດ ({selectedProducts.length})
+                <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={handlePrintSelectedBarcodes}>
+                  <Barcode className="w-3.5 h-3.5 mr-1" />
+                  ພິມ ({selectedProducts.length})
                 </Button>
               )}
               <input
@@ -319,16 +319,16 @@ export function ProductsManagementTab() {
                 onChange={handleImportExcel}
                 className="hidden"
               />
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-3.5 h-3.5 mr-1" />
                 ນຳເຂົ້າ Excel
               </Button>
-              <Button variant="outline" onClick={handleExportExcel}>
-                <Download className="w-4 h-4 mr-2" />
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleExportExcel}>
+                <Download className="w-3.5 h-3.5 mr-1" />
                 ສົ່ງອອກ Excel
               </Button>
-              <Button onClick={() => { setEditingProduct(null); setFormData(initialFormData); setShowAddProduct(true); }}>
-                <Plus className="w-4 h-4 mr-2" />
+              <Button size="sm" className="h-8 text-xs" onClick={() => { setEditingProduct(null); setFormData(initialFormData); setShowAddProduct(true); }}>
+                <Plus className="w-3.5 h-3.5 mr-1" />
                 ເພີ່ມສິນຄ້າ
               </Button>
             </div>
@@ -336,82 +336,80 @@ export function ProductsManagementTab() {
         </CardContent>
       </Card>
 
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
+      {/* Products Table - Full Height */}
+      <Card className="flex-1 min-h-0">
+        <CardHeader className="py-2 px-3">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Package className="w-4 h-4" />
             ລາຍການສິນຄ້າ ({filteredProducts.length})
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[500px]">
+        <CardContent className="p-2">
+          <ScrollArea className="h-[calc(100vh-260px)]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-8 p-1">
                     <Checkbox 
                       checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>ຮູບ</TableHead>
-                  <TableHead>ບາໂຄ້ດ</TableHead>
-                  <TableHead>ຊື່ສິນຄ້າ</TableHead>
-                  <TableHead className="text-right">ລາຄາທຶນ</TableHead>
-                  <TableHead className="text-right">ລາຄາຂາຍ</TableHead>
-                  <TableHead className="text-right">ສະຕ໊ອກ</TableHead>
-                  <TableHead>ສະຖານະ</TableHead>
-                  <TableHead className="text-right">ຈັດການ</TableHead>
+                  <TableHead className="p-1 text-xs">ຮູບ</TableHead>
+                  <TableHead className="p-1 text-xs">ບາໂຄ້ດ</TableHead>
+                  <TableHead className="p-1 text-xs">ຊື່ສິນຄ້າ</TableHead>
+                  <TableHead className="text-right p-1 text-xs">ລາຄາຂາຍ</TableHead>
+                  <TableHead className="text-right p-1 text-xs">ສະຕ໊ອກ</TableHead>
+                  <TableHead className="text-right p-1 text-xs">ຈັດການ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.map(product => (
-                  <TableRow key={product.id}>
-                    <TableCell>
+                  <TableRow key={product.id} className="h-10">
+                    <TableCell className="p-1">
                       <Checkbox 
                         checked={selectedProducts.includes(product.id)}
                         onCheckedChange={() => toggleProductSelection(product.id)}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-1">
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-10 h-10 object-cover rounded" />
+                        <img src={product.image_url} alt={product.name} className="w-8 h-8 object-cover rounded" />
                       ) : (
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                          <Package className="w-5 h-5 text-muted-foreground" />
+                        <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                          <Package className="w-4 h-4 text-muted-foreground" />
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{product.barcode || '-'}</TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right">₭{product.cost_price.toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-medium">₭{product.selling_price.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={product.stock_quantity <= product.min_stock_level ? 'destructive' : 'secondary'}>
-                        {product.stock_quantity} {product.unit}
+                    <TableCell className="font-mono text-xs p-1">{product.barcode || '-'}</TableCell>
+                    <TableCell className="font-medium text-xs p-1 max-w-[150px] truncate" title={product.name}>
+                      {product.name}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-xs p-1">₭{product.selling_price.toLocaleString()}</TableCell>
+                    <TableCell className="text-right p-1">
+                      <Badge 
+                        variant={product.stock_quantity <= product.min_stock_level ? 'destructive' : 'secondary'}
+                        className="text-[10px] px-1"
+                      >
+                        {product.stock_quantity}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={product.is_active ? 'default' : 'outline'}>
-                        {product.is_active ? 'ເປີດ' : 'ປິດ'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="text-right p-1">
+                      <div className="flex justify-end gap-0.5">
                         <Button 
                           variant="ghost" 
                           size="icon" 
+                          className="h-6 w-6"
                           onClick={() => handlePrintSingleBarcode(product)}
                           title="ພິມບາໂຄ້ດ"
                         >
-                          <Barcode className="w-4 h-4" />
+                          <Barcode className="w-3 h-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}>
-                          <Edit className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(product)}>
+                          <Edit className="w-3 h-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(product)}>
-                          <Trash2 className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(product)}>
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     </TableCell>

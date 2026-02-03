@@ -61,9 +61,9 @@ export function Navigation({ activeTab, onTabChange, userRole }: NavigationProps
   });
 
   return (
-    <nav className="card-luxury border-b border-border sticky top-[88px] z-40 overflow-x-auto">
-      <div className="container mx-auto px-2">
-        <div className="flex gap-1 py-2 min-w-max">
+    <nav className="card-luxury border-b border-border sticky top-[52px] lg:top-[60px] z-40 overflow-x-auto">
+      <div className="container mx-auto px-1">
+        <div className="flex gap-0.5 py-1 min-w-max">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -71,14 +71,14 @@ export function Navigation({ activeTab, onTabChange, userRole }: NavigationProps
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1 px-2 py-1.5 lg:px-3 lg:py-2 rounded-md font-medium transition-all whitespace-nowrap ${
                   isActive
-                    ? 'tab-active shadow-lg'
+                    ? 'tab-active shadow-md'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-sm">{tab.label}</span>
+                <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                <span className="text-[10px] lg:text-xs">{tab.label}</span>
               </button>
             );
           })}
