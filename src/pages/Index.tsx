@@ -23,6 +23,7 @@ import { CustomersTab } from '@/components/pos/CustomersTab';
 import { ReorderReportTab } from '@/components/pos/ReorderReportTab';
 import { DashboardTab } from '@/components/pos/DashboardTab';
 import { PromotionsTab } from '@/components/pos/PromotionsTab';
+import { TableReservationTab } from '@/components/pos/TableReservationTab';
 import { useProducts } from '@/hooks/useProducts';
 import { useSales } from '@/hooks/useSales';
 import { useCustomers } from '@/hooks/useCustomers';
@@ -200,6 +201,7 @@ const Index = () => {
         {activeTab === 'customers' && <CustomersTab />}
         {activeTab === 'promotions' && <PromotionsTab />}
         {activeTab === 'reorder' && <ReorderReportTab products={products} />}
+        {activeTab === 'reservations' && <TableReservationTab />}
         {activeTab === 'attendance' && (
           <AttendanceTab
             employees={employees}

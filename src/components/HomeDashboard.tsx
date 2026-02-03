@@ -12,7 +12,8 @@ import {
   Settings,
   LayoutDashboard,
   Tag,
-  AlertTriangle
+  AlertTriangle,
+  CalendarDays
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -88,6 +89,14 @@ const modules: ModuleItem[] = [
     requiredPermission: 'canManageEmployees'
   },
   { 
+    id: 'reservations', 
+    label: 'ຈອງໂຕະ', 
+    description: 'ຈັດການການຈອງ',
+    icon: CalendarDays, 
+    color: 'bg-gradient-to-br from-rose-600 to-rose-700',
+    requiredPermission: 'canViewFinance'
+  },
+  {
     id: 'dashboard', 
     label: 'Dashboard', 
     description: 'ສະຖິຕິລວມ',
