@@ -487,40 +487,40 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   };
 
   return (
-    <div className="h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] flex flex-col">
+    <div className="h-[calc(100vh-88px)] lg:h-[calc(100vh-96px)] flex flex-col">
       {/* Offline Indicator */}
       <OfflineIndicator />
       
-      {/* Stock Alerts */}
+      {/* Stock Alerts - Only show if there are alerts */}
       {hasAlerts && (
-        <div className="mb-2">
+        <div className="mb-1">
           <StockAlerts products={products} onNavigateToInventory={onNavigateToInventory} />
         </div>
       )}
 
       {/* Main POS Grid - Fullscreen optimized */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-4 gap-2 md:gap-3 min-h-0">
-        {/* Products Section */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0 gap-2">
-          {/* Barcode Scanner Input */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-1 min-h-0">
+        {/* Products Section - Takes 3/4 of space */}
+        <div className="lg:col-span-3 flex flex-col min-h-0 gap-1">
+          {/* Barcode Scanner Input - Compact */}
           <Card className="shrink-0">
-            <CardContent className="p-2 md:p-3">
-              <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
+            <CardContent className="p-1.5">
+              <form onSubmit={handleBarcodeSubmit} className="flex gap-1">
                 <div className="relative flex-1">
-                  <Barcode className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Barcode className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <Input
                     ref={barcodeInputRef}
                     value={barcodeInput}
                     onChange={(e) => setBarcodeInput(e.target.value)}
                     placeholder="ສະແກນບາໂຄ້ດ..."
-                    className="pl-8 h-9 text-sm"
+                    className="pl-7 h-8 text-xs"
                   />
                 </div>
-                <Button type="submit" variant="secondary" size="sm" className="h-9">
-                  <Search className="w-4 h-4" />
+                <Button type="submit" variant="secondary" size="sm" className="h-8 px-2">
+                  <Search className="w-3.5 h-3.5" />
                 </Button>
-                <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setShowCameraScanner(true)}>
-                  <Camera className="w-4 h-4" />
+                <Button type="button" variant="outline" size="sm" className="h-8 px-2" onClick={() => setShowCameraScanner(true)}>
+                  <Camera className="w-3.5 h-3.5" />
                 </Button>
               </form>
             </CardContent>
@@ -535,16 +535,16 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             }}
           />
 
-          {/* Search */}
+          {/* Search - Compact */}
           <Card className="shrink-0">
-            <CardContent className="p-2 md:p-3">
+            <CardContent className="p-1.5">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ຄົ້ນຫາສິນຄ້າ..."
-                  className="pl-8 h-9 text-sm"
+                  className="pl-7 h-8 text-xs"
                 />
               </div>
             </CardContent>
@@ -552,15 +552,15 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
 
           {/* Products Grid - Fullscreen optimized */}
           <Card className="flex-1 min-h-0 flex flex-col">
-            <CardHeader className="py-2 px-3 shrink-0">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Package className="w-4 h-4" />
+            <CardHeader className="py-1.5 px-2 shrink-0">
+              <CardTitle className="text-xs flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" />
                 ສິນຄ້າ ({filteredProducts.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-2 min-h-0">
+            <CardContent className="flex-1 p-1 min-h-0">
               <ScrollArea className="h-full">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-1.5">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-1">
                   {filteredProducts.map(product => (
                     <button
                       key={product.id}
@@ -582,7 +582,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                         }
                       }}
                       disabled={product.stock_quantity <= 0}
-                      className={`p-1.5 rounded-lg border text-left transition-all hover:shadow-md ${
+                      className={`p-1 rounded-md border text-left transition-all hover:shadow-sm ${
                         product.stock_quantity <= 0 
                           ? 'opacity-50 cursor-not-allowed bg-muted' 
                           : 'hover:border-primary cursor-pointer'
@@ -592,20 +592,22 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                         <img 
                           src={product.image_url} 
                           alt={product.name}
-                          className="w-full h-10 md:h-12 lg:h-14 object-cover rounded mb-1"
+                          className="w-full h-8 md:h-10 lg:h-12 object-cover rounded mb-0.5"
                         />
                       ) : (
-                        <div className="w-full h-10 md:h-12 lg:h-14 bg-muted rounded mb-1 flex items-center justify-center">
-                          <Package className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                        <div className="w-full h-8 md:h-10 lg:h-12 bg-muted rounded mb-0.5 flex items-center justify-center">
+                          <Package className="w-3 h-3 md:w-4 md:h-4 text-muted-foreground" />
                         </div>
                       )}
-                      <p className="font-medium text-[10px] md:text-xs line-clamp-2 leading-tight">{product.name}</p>
-                      <p className="text-primary font-bold text-[10px] md:text-xs mt-0.5">
+                      <p className="font-medium text-[8px] md:text-[9px] lg:text-[10px] truncate leading-tight" title={product.name}>
+                        {product.name}
+                      </p>
+                      <p className="text-primary font-bold text-[8px] md:text-[9px] lg:text-[10px]">
                         ₭{product.selling_price.toLocaleString()}
                       </p>
                       <Badge 
                         variant={product.stock_quantity <= product.min_stock_level ? 'destructive' : 'secondary'}
-                        className="mt-0.5 text-[8px] md:text-[10px] px-1 py-0"
+                        className="text-[6px] md:text-[7px] lg:text-[8px] px-0.5 py-0 h-3"
                       >
                         {product.stock_quantity}
                       </Badge>
@@ -617,85 +619,85 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           </Card>
         </div>
 
-        {/* Cart Section */}
-        <Card className="lg:col-span-2 xl:col-span-1 flex flex-col min-h-0">
-          <CardHeader className="py-2 px-3 shrink-0">
-            <CardTitle className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-1.5">
-                <ShoppingCart className="w-4 h-4" />
+        {/* Cart Section - Takes 1/4 of space */}
+        <Card className="lg:col-span-1 flex flex-col min-h-0">
+          <CardHeader className="py-1.5 px-2 shrink-0">
+            <CardTitle className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1">
+                <ShoppingCart className="w-3.5 h-3.5" />
                 ຕະກ້າ ({cart.reduce((sum, i) => sum + i.quantity, 0)})
               </span>
               {cart.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearCart} className="h-7 px-2 text-xs">
-                  <Trash2 className="w-3 h-3 mr-1" />
+                <Button variant="ghost" size="sm" onClick={clearCart} className="h-6 px-1.5 text-[10px]">
+                  <Trash2 className="w-3 h-3 mr-0.5" />
                   ລ້າງ
                 </Button>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-2 min-h-0">
-            <ScrollArea className="flex-1 mb-2">
+          <CardContent className="flex-1 flex flex-col p-1.5 min-h-0">
+            <ScrollArea className="flex-1 mb-1">
               {cart.length === 0 ? (
-                <div className="text-center text-muted-foreground py-6">
-                  <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-xs">ຍັງບໍ່ມີສິນຄ້າ</p>
+                <div className="text-center text-muted-foreground py-4">
+                  <ShoppingCart className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                  <p className="text-[10px]">ຍັງບໍ່ມີສິນຄ້າ</p>
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   {cart.map(item => (
                     <div 
                       key={item.product_id} 
-                      className="flex items-center gap-1.5 p-1.5 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
+                      className="flex items-center gap-1 p-1 rounded-md bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
                       onClick={() => {
                         setSelectedCartItem(item);
                         setShowCartItemSelector(true);
                       }}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-xs truncate">{item.product_name}</p>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="font-medium text-[10px] truncate" title={item.product_name}>{item.product_name}</p>
+                        <p className="text-[8px] text-muted-foreground">
                           ₭{item.unit_price.toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                         <Button 
                           variant="outline" 
                           size="icon" 
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => updateCartItemQuantity(item.product_id, -1)}
                         >
-                          <Minus className="w-3 h-3" />
+                          <Minus className="w-2.5 h-2.5" />
                         </Button>
                         <Input
                           type="number"
                           value={item.quantity}
                           onChange={(e) => setCartItemQuantity(item.product_id, parseInt(e.target.value) || 0)}
-                          className="w-10 h-6 text-center text-xs p-0"
+                          className="w-8 h-5 text-center text-[10px] p-0"
                           min={1}
                           max={item.stock_quantity}
                         />
                         <Button 
                           variant="outline" 
                           size="icon" 
-                          className="h-6 w-6"
+                          className="h-5 w-5"
                           onClick={() => updateCartItemQuantity(item.product_id, 1)}
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-2.5 h-2.5" />
                         </Button>
                       </div>
-                      <p className="font-medium text-xs w-16 text-right">
+                      <p className="font-medium text-[10px] w-12 text-right">
                         ₭{item.total_price.toLocaleString()}
                       </p>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-6 w-6 text-destructive shrink-0"
+                        className="h-5 w-5 text-destructive shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeFromCart(item.product_id);
                         }}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-2.5 h-2.5" />
                       </Button>
                     </div>
                   ))}
@@ -703,16 +705,16 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               )}
             </ScrollArea>
 
-            {/* Coupon Code Input */}
-            <div className="border-t pt-2 mb-2 space-y-2">
-              <div className="flex gap-1.5">
+            {/* Coupon Code Input - Compact */}
+            <div className="border-t pt-1.5 mb-1 space-y-1">
+              <div className="flex gap-1">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <Tag className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground" />
                   <Input
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     placeholder="ລະຫັດສ່ວນຫຼຸດ..."
-                    className="pl-7 h-8 text-xs"
+                    className="pl-5 h-6 text-[10px]"
                     disabled={!!appliedCoupon}
                   />
                 </div>
@@ -720,7 +722,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                   <Button 
                     variant="destructive" 
                     size="sm" 
-                    className="h-8 px-2 text-xs"
+                    className="h-6 px-1.5 text-[10px]"
                     onClick={handleRemoveCoupon}
                   >
                     ລຶບ
@@ -729,7 +731,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                   <Button 
                     variant="secondary" 
                     size="sm" 
-                    className="h-8 px-2 text-xs"
+                    className="h-6 px-1.5 text-[10px]"
                     onClick={handleApplyCoupon}
                     disabled={!couponCode.trim() || applyingCoupon}
                   >
@@ -738,20 +740,20 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                 )}
               </div>
               {appliedCoupon && (
-                <div className="flex items-center justify-between text-xs text-primary bg-primary/10 rounded px-2 py-1">
-                  <span className="flex items-center gap-1">
-                    <Ticket className="w-3 h-3" />
+                <div className="flex items-center justify-between text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5">
+                  <span className="flex items-center gap-0.5">
+                    <Ticket className="w-2.5 h-2.5" />
                     {appliedCoupon.name}
                   </span>
                   <span>-₭{couponDiscount.toLocaleString()}</span>
                 </div>
               )}
               {promotionResults.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {promotionResults.map((result, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs text-accent-foreground bg-accent rounded px-2 py-1">
-                      <span className="flex items-center gap-1 truncate">
-                        <Tag className="w-3 h-3 shrink-0" />
+                    <div key={index} className="flex items-center justify-between text-[10px] text-accent-foreground bg-accent rounded px-1.5 py-0.5">
+                      <span className="flex items-center gap-0.5 truncate">
+                        <Tag className="w-2.5 h-2.5 shrink-0" />
                         <span className="truncate">{result.description}</span>
                       </span>
                       <span className="shrink-0">-₭{result.discount.toLocaleString()}</span>
@@ -761,28 +763,28 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
               )}
             </div>
 
-            {/* Cart Summary */}
-            <div className="border-t pt-2 space-y-1.5">
-              <div className="flex justify-between text-xs">
+            {/* Cart Summary - Compact */}
+            <div className="border-t pt-1.5 space-y-1">
+              <div className="flex justify-between text-[10px]">
                 <span>ລວມ</span>
                 <span>₭{cartTotal.toLocaleString()}</span>
               </div>
               {totalDiscount > 0 && (
-                <div className="flex justify-between text-xs text-primary">
+                <div className="flex justify-between text-[10px] text-primary">
                   <span>ສ່ວນຫຼຸດ</span>
                   <span>-₭{totalDiscount.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-sm md:text-base">
+              <div className="flex justify-between font-bold text-xs">
                 <span>ຍອດຮວມ</span>
                 <span className="text-primary">₭{finalTotal.toLocaleString()}</span>
               </div>
               <Button 
-                className="w-full h-10" 
+                className="w-full h-8 text-xs" 
                 disabled={cart.length === 0}
                 onClick={() => setShowCheckout(true)}
               >
-                <CreditCard className="w-4 h-4 mr-2" />
+                <CreditCard className="w-3.5 h-3.5 mr-1" />
                 ຊຳລະເງິນ
               </Button>
             </div>

@@ -45,53 +45,49 @@ export function Header({ onLogout, userRole, userName, storeName = 'AEK SHOP', s
 
   return (
     <header className="card-glass border-b border-border/50 sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-2 py-2 lg:px-4 lg:py-3">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3 group">
+          {/* Logo - Compact */}
+          <div className="flex items-center gap-2 group">
             <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-primary/20 blur-lg group-hover:blur-xl transition-all" />
+              <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md group-hover:blur-lg transition-all" />
               {storeLogo ? (
                 <img 
                   src={storeLogo} 
                   alt={storeName}
-                  className="relative w-11 h-11 rounded-xl object-cover border-2 border-primary/30"
+                  className="relative w-8 h-8 lg:w-10 lg:h-10 rounded-lg object-cover border border-primary/30"
                 />
               ) : (
-                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-success flex items-center justify-center">
-                  <Store className="w-6 h-6 text-primary-foreground" />
+                <div className="relative w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-gradient-to-br from-primary to-success flex items-center justify-center">
+                  <Store className="w-4 h-4 lg:w-5 lg:h-5 text-primary-foreground" />
                 </div>
               )}
             </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
+            <div className="hidden sm:block">
+              <h1 className="text-base lg:text-lg font-bold bg-gradient-to-r from-primary to-success bg-clip-text text-transparent">
                 {storeName}
               </h1>
-              <p className="text-xs text-muted-foreground">ລະບົບບໍລິຫານ</p>
+              <p className="text-[10px] text-muted-foreground">ລະບົບບໍລິຫານ</p>
             </div>
           </div>
 
           {/* User Info & Logout */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* User Role Badge */}
             {userRole && (
-              <div className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg border ${getRoleBadgeClass(userRole)}`}>
+              <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs ${getRoleBadgeClass(userRole)}`}>
                 {getRoleIcon(userRole)}
-                <div className="text-sm">
-                  {userName && <span className="font-medium">{userName}</span>}
-                  <span className="ml-1 text-xs opacity-75">
-                    ({getRoleLabel(userRole)})
-                  </span>
-                </div>
+                <span className="hidden md:inline font-medium">{userName}</span>
+                <span className="text-[10px] opacity-75">({getRoleLabel(userRole)})</span>
               </div>
             )}
 
             <button
               onClick={onLogout}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-secondary/50 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all border border-transparent hover:border-destructive/30"
+              className="flex items-center gap-1.5 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg bg-secondary/50 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all border border-transparent hover:border-destructive/30"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm">ອອກລະບົບ</span>
+              <span className="hidden lg:inline text-xs">ອອກລະບົບ</span>
             </button>
           </div>
         </div>
