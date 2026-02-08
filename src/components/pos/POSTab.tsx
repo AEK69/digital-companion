@@ -41,6 +41,7 @@ import { StockAlerts, useStockAlerts } from './StockAlerts';
 import { OfflineIndicator } from './OfflineIndicator';
 import { ProductVariantDialog } from './ProductVariantDialog';
 import { CartItemVariantSelector } from './CartItemVariantSelector';
+import { ProductDetailPopup } from './ProductDetailPopup';
 import { printReceipt, downloadReceipt } from '@/utils/receiptPrinter';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -87,7 +88,7 @@ function generateOnePayDynamicQR(amount: number): { qrCodeUrl: string, link: str
 }
 
 export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabProps) {
-  const { products, getProductByBarcode, refetch: refetchProducts } = useProducts();
+  const { products, categories, getProductByBarcode, refetch: refetchProducts } = useProducts();
   const { createSale, getSaleItems } = useSales();
   const { customers, redeemPoints } = useCustomers();
   const { validateCoupon, calculateCouponDiscount, useCoupon, calculatePromotions } = usePromotions();
@@ -127,6 +128,11 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   // Cart item variant selector state (tap on cart item)
   const [selectedCartItem, setSelectedCartItem] = useState<CartItem | null>(null);
   const [showCartItemSelector, setShowCartItemSelector] = useState(false);
+  
+  // Product detail popup state (long press)
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [showDetailPopup, setShowDetailPopup] = useState(false);
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
@@ -499,9 +505,9 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
       )}
 
       {/* Main POS Grid - Full screen optimized */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-3 min-h-0 overflow-hidden">
-        {/* Products Section - Takes 3/5 of space on desktop, full on mobile */}
-        <div className="lg:col-span-3 flex flex-col min-h-0 gap-2 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">
+        {/* Products Section - Takes 7/12 of space on desktop, full on mobile */}
+        <div className="lg:col-span-7 flex flex-col min-h-0 gap-2 overflow-hidden">
           {/* Barcode Scanner & Search Combined */}
           <Card className="shrink-0">
             <CardContent className="p-3">
@@ -561,6 +567,12 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                     <button
                       key={product.id}
                       onClick={() => {
+                        // Clear long press timeout
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                          longPressTimeoutRef.current = null;
+                        }
+                        
                         const now = Date.now();
                         const lastTap = lastTapRef.current;
                         
@@ -576,6 +588,43 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                             }
                           }, 300);
                         }
+                      }}
+                      onMouseDown={() => {
+                        longPressTimeoutRef.current = setTimeout(() => {
+                          setDetailProduct(product);
+                          setShowDetailPopup(true);
+                          lastTapRef.current = null;
+                        }, 500);
+                      }}
+                      onMouseUp={() => {
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                          longPressTimeoutRef.current = null;
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                          longPressTimeoutRef.current = null;
+                        }
+                      }}
+                      onTouchStart={() => {
+                        longPressTimeoutRef.current = setTimeout(() => {
+                          setDetailProduct(product);
+                          setShowDetailPopup(true);
+                          lastTapRef.current = null;
+                        }, 500);
+                      }}
+                      onTouchEnd={() => {
+                        if (longPressTimeoutRef.current) {
+                          clearTimeout(longPressTimeoutRef.current);
+                          longPressTimeoutRef.current = null;
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setDetailProduct(product);
+                        setShowDetailPopup(true);
                       }}
                       disabled={product.stock_quantity <= 0}
                       className={`p-3 rounded-lg border-2 text-left transition-all hover:shadow-md ${
@@ -615,8 +664,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           </Card>
         </div>
 
-        {/* Cart Section - Fixed width on mobile, 2/5 on desktop with scrollable container */}
-        <Card className="lg:col-span-2 flex flex-col min-h-0 overflow-hidden">
+        {/* Cart Section - 5/12 on desktop for wider visibility */}
+        <Card className="lg:col-span-5 flex flex-col min-h-0 overflow-hidden">
           <CardHeader className="py-3 px-4 shrink-0 border-b">
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
@@ -872,6 +921,18 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           }}
         />
       )}
+
+      {/* Product Detail Popup (from long press) */}
+      <ProductDetailPopup
+        isOpen={showDetailPopup}
+        onClose={() => {
+          setShowDetailPopup(false);
+          setDetailProduct(null);
+        }}
+        product={detailProduct}
+        onAddToCart={addToCart}
+        categories={categories}
+      />
 
       {/* Checkout Dialog */}
       <Dialog open={showCheckout} onOpenChange={setShowCheckout}>
