@@ -17,7 +17,8 @@ import {
   UserCheck,
   AlertTriangle,
   LayoutDashboard,
-  CalendarDays
+  CalendarDays,
+  CreditCard
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 
@@ -30,6 +31,7 @@ interface NavigationProps {
 const allTabs: { id: TabType; label: string; icon: React.ElementType; requiredPermission?: keyof typeof ROLE_PERMISSIONS['admin'] }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'canViewFinance' },
   { id: 'pos', label: 'ຂາຍສິນຄ້າ', icon: ShoppingCart },
+  { id: 'credits', label: 'ຕິດໜີ້', icon: CreditCard, requiredPermission: 'canViewFinance' },
   { id: 'products', label: 'ສິນຄ້າ', icon: Package, requiredPermission: 'canManageEmployees' },
   { id: 'inventory', label: 'ສະຕ໊ອກ', icon: Warehouse, requiredPermission: 'canManageEmployees' },
   { id: 'promotions', label: 'ໂປຣໂມຊັນ', icon: Receipt, requiredPermission: 'canViewFinance' },

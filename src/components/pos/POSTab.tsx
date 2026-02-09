@@ -26,7 +26,11 @@ import {
   Star,
   Check,
   Ticket,
-  Tag
+  Tag,
+  FileText,
+  Phone,
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import { Product, useProducts } from '@/hooks/useProducts';
 import { CartItem, useSales } from '@/hooks/useSales';
@@ -34,6 +38,8 @@ import { useCustomers, Customer } from '@/hooks/useCustomers';
 import { usePromotions, Coupon } from '@/hooks/usePromotions';
 import { useOfflineSales } from '@/hooks/useOfflineSales';
 import { useProductVariants, ProductVariant } from '@/hooks/useProductVariants';
+import { useCreditSales } from '@/hooks/useCreditSales';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Employee, StoreInfo } from '@/types';
 import { BarcodeScanner } from './BarcodeScanner';
@@ -93,6 +99,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const { customers, redeemPoints } = useCustomers();
   const { validateCoupon, calculateCouponDiscount, useCoupon, calculatePromotions } = usePromotions();
   const { isOnline, addOfflineSale, shouldUseOffline } = useOfflineSales();
+  const { createCreditSale } = useCreditSales();
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
   const { profile, user } = useAuth();
@@ -119,6 +126,14 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  
+  // Credit/Debt payment state
+  const [showCreditDialog, setShowCreditDialog] = useState(false);
+  const [creditCustomerName, setCreditCustomerName] = useState('');
+  const [creditCustomerPhone, setCreditCustomerPhone] = useState('');
+  const [creditCustomerAddress, setCreditCustomerAddress] = useState('');
+  const [creditDueDate, setCreditDueDate] = useState('');
+  const [creditNote, setCreditNote] = useState('');
   
   // Variant dialog state (double-tap on product)
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
@@ -380,6 +395,16 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
+    // Validate credit payment
+    if (paymentMethod === 'credit' && !creditCustomerName.trim()) {
+      toast({
+        title: 'ກະລຸນາປ້ອນຊື່ລູກຄ້າ',
+        description: 'ຕ້ອງລະບຸຊື່ຜູ້ຕິດໜີ້',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setProcessing(true);
     try {
       const pointsToRedeem = pointsDiscount > 0 ? Math.ceil(pointsDiscount / 100) : 0;
@@ -389,12 +414,32 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         paymentMethod,
         totalDiscount,
         selectedEmployee || undefined,
-        undefined,
+        paymentMethod === 'credit' ? `ຕິດໜີ້ - ${creditCustomerName}` : undefined,
         selectedCustomer?.id,
         pointsDiscount
       );
 
       if (sale) {
+        // Handle credit sale - create credit record
+        if (paymentMethod === 'credit') {
+          await createCreditSale({
+            sale_id: sale.id,
+            customer_name: creditCustomerName,
+            customer_phone: creditCustomerPhone || undefined,
+            customer_address: creditCustomerAddress || undefined,
+            total_amount: actualFinalTotal,
+            due_date: creditDueDate || undefined,
+            note: creditNote || undefined,
+          });
+          
+          // Reset credit form
+          setCreditCustomerName('');
+          setCreditCustomerPhone('');
+          setCreditCustomerAddress('');
+          setCreditDueDate('');
+          setCreditNote('');
+        }
+        
         // Use coupon if applied
         if (appliedCoupon) {
           await useCoupon(appliedCoupon.id);
@@ -428,7 +473,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
         }
         
         toast({
-          title: 'ຂາຍສຳເລັດ!',
+          title: paymentMethod === 'credit' ? 'ບັນທຶກການຕິດໜີ້ສຳເລັດ!' : 'ຂາຍສຳເລັດ!',
           description: `ເລກທີ່ໃບບິນ: ${sale.sale_number}`,
         });
         
@@ -1029,7 +1074,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
 
             <div className="space-y-2">
               <Label className="text-xs">ວິທີຊຳລະ</Label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-4 gap-1.5">
                 <Button
                   type="button"
                   variant={paymentMethod === 'cash' ? 'default' : 'outline'}
@@ -1060,8 +1105,91 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                   <QrCode className="w-4 h-4 mb-0.5" />
                   <span className="text-[10px]">QR Code</span>
                 </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === 'credit' ? 'default' : 'outline'}
+                  onClick={() => setPaymentMethod('credit')}
+                  className="flex flex-col h-auto py-2 border-dashed"
+                  size="sm"
+                >
+                  <FileText className="w-4 h-4 mb-0.5" />
+                  <span className="text-[10px]">ຕິດໜີ້</span>
+                </Button>
               </div>
             </div>
+
+            {/* Credit Payment - Show credit form */}
+            {paymentMethod === 'credit' && (
+              <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg space-y-3">
+                <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                  <FileText className="w-4 h-4" />
+                  ຂໍ້ມູນຜູ້ຕິດໜີ້
+                </p>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">ຊື່ລູກຄ້າ *</Label>
+                    <div className="relative">
+                      <User className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        value={creditCustomerName}
+                        onChange={(e) => setCreditCustomerName(e.target.value)}
+                        placeholder="ຊື່ຜູ້ຊື້..."
+                        className="h-8 text-sm pl-7"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">ເບີໂທ</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                        <Input
+                          value={creditCustomerPhone}
+                          onChange={(e) => setCreditCustomerPhone(e.target.value)}
+                          placeholder="020..."
+                          className="h-8 text-sm pl-7"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">ກຳນົດຊຳລະ</Label>
+                      <div className="relative">
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                        <Input
+                          type="date"
+                          value={creditDueDate}
+                          onChange={(e) => setCreditDueDate(e.target.value)}
+                          className="h-8 text-sm pl-7"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">ທີ່ຢູ່</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-2 top-2 w-3 h-3 text-muted-foreground" />
+                      <Input
+                        value={creditCustomerAddress}
+                        onChange={(e) => setCreditCustomerAddress(e.target.value)}
+                        placeholder="ບ້ານ, ເມືອງ..."
+                        className="h-8 text-sm pl-7"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">ໝາຍເຫດ</Label>
+                    <Textarea
+                      value={creditNote}
+                      onChange={(e) => setCreditNote(e.target.value)}
+                      placeholder="ໝາຍເຫດເພີ່ມເຕີມ..."
+                      rows={2}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* QR Code Display */}
             {paymentMethod === 'qr' && (
@@ -1171,9 +1299,10 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
             </Button>
             <Button 
               onClick={handleCheckout} 
-              disabled={processing || (paymentMethod === 'cash' && receivedAmount < actualFinalTotal)}
+              disabled={processing || (paymentMethod === 'cash' && receivedAmount < actualFinalTotal) || (paymentMethod === 'credit' && !creditCustomerName.trim())}
+              variant={paymentMethod === 'credit' ? 'destructive' : 'default'}
             >
-              {processing ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນ'}
+              {processing ? 'ກຳລັງບັນທຶກ...' : paymentMethod === 'credit' ? 'ບັນທຶກຕິດໜີ້' : 'ຢືນຢັນ'}
             </Button>
           </DialogFooter>
         </DialogContent>

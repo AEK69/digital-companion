@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   Tag,
   AlertTriangle,
-  CalendarDays
+  CalendarDays,
+  CreditCard
 } from 'lucide-react';
 import { TabType, AppRole, ROLE_PERMISSIONS } from '@/types';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -96,8 +97,16 @@ const modules: ModuleItem[] = [
     color: 'bg-gradient-to-br from-rose-600 to-rose-700',
     requiredPermission: 'canViewFinance'
   },
+  { 
+    id: 'credits', 
+    label: 'ຕິດໜີ້', 
+    description: 'ເບິ່ງລູກໜີ້ຄ້າງຈ່າຍ',
+    icon: CreditCard, 
+    color: 'bg-gradient-to-br from-orange-600 to-orange-700',
+    requiredPermission: 'canViewFinance'
+  },
   {
-    id: 'dashboard', 
+    id: 'dashboard',
     label: 'Dashboard', 
     description: 'ສະຖິຕິລວມ',
     icon: LayoutDashboard, 

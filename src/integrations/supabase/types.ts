@@ -118,6 +118,97 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_sale_id: string
+          id: string
+          note: string | null
+          payment_method: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          credit_sale_id: string
+          id?: string
+          note?: string | null
+          payment_method?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_sale_id?: string
+          id?: string
+          note?: string | null
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_payments_credit_sale_id_fkey"
+            columns: ["credit_sale_id"]
+            isOneToOne: false
+            referencedRelation: "credit_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_sales: {
+        Row: {
+          created_at: string
+          customer_address: string | null
+          customer_name: string
+          customer_phone: string | null
+          due_date: string | null
+          id: string
+          note: string | null
+          paid_amount: number
+          remaining_amount: number
+          sale_id: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_address?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          paid_amount?: number
+          remaining_amount?: number
+          sale_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_address?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          paid_amount?: number
+          remaining_amount?: number
+          sale_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_sales_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
