@@ -619,10 +619,6 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                           clearTimeout(longPressTimeoutRef.current);
                           longPressTimeoutRef.current = null;
                         }
-                        
-                        const now = Date.now();
-                        const lastTap = lastTapRef.current;
-                        
                         addToCart(product);
                       }}
                       onMouseDown={() => {
