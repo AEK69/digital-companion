@@ -106,6 +106,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -512,6 +513,8 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
 
   const filteredProducts = products.filter(p => {
     if (!p.is_active) return false;
+    if (selectedCategory === 'uncategorized' && p.category_id) return false;
+    if (selectedCategory !== 'all' && selectedCategory !== 'uncategorized' && p.category_id !== selectedCategory) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return p.name.toLowerCase().includes(query) || 
@@ -558,34 +561,71 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           {/* Barcode Scanner & Search Combined */}
           <Card className="shrink-0">
             <CardContent className="p-3">
-              <div className="flex gap-2">
-                <form onSubmit={handleBarcodeSubmit} className="flex gap-2 flex-1">
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <form onSubmit={handleBarcodeSubmit} className="flex gap-2 flex-1">
+                    <div className="relative flex-1">
+                      <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                      <Input
+                        ref={barcodeInputRef}
+                        value={barcodeInput}
+                        onChange={(e) => setBarcodeInput(e.target.value)}
+                        placeholder="ສະແກນບາໂຄ້ດ..."
+                        className="pl-10 h-12 text-base"
+                      />
+                    </div>
+                    <Button type="submit" variant="secondary" size="lg" className="h-12 w-12 p-0">
+                      <Search className="w-5 h-5" />
+                    </Button>
+                    <Button type="button" variant="outline" size="lg" className="h-12 w-12 p-0" onClick={() => setShowCameraScanner(true)}>
+                      <Camera className="w-5 h-5" />
+                    </Button>
+                  </form>
                   <div className="relative flex-1">
-                    <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
-                      ref={barcodeInputRef}
-                      value={barcodeInput}
-                      onChange={(e) => setBarcodeInput(e.target.value)}
-                      placeholder="ສະແກນບາໂຄ້ດ..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="ຄົ້ນຫາສິນຄ້າ..."
                       className="pl-10 h-12 text-base"
                     />
                   </div>
-                  <Button type="submit" variant="secondary" size="lg" className="h-12 w-12 p-0">
-                    <Search className="w-5 h-5" />
-                  </Button>
-                  <Button type="button" variant="outline" size="lg" className="h-12 w-12 p-0" onClick={() => setShowCameraScanner(true)}>
-                    <Camera className="w-5 h-5" />
-                  </Button>
-                </form>
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="ຄົ້ນຫາສິນຄ້າ..."
-                    className="pl-10 h-12 text-base"
-                  />
                 </div>
+                {/* Category Filter */}
+                <ScrollArea className="w-full">
+                  <div className="flex gap-1.5 pb-1">
+                    <Button
+                      variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs shrink-0"
+                      onClick={() => setSelectedCategory('all')}
+                    >
+                      ທັງໝົດ ({products.filter(p => p.is_active).length})
+                    </Button>
+                    {categories.map(cat => {
+                      const count = products.filter(p => p.is_active && p.category_id === cat.id).length;
+                      return (
+                        <Button
+                          key={cat.id}
+                          variant={selectedCategory === cat.id ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-8 text-xs shrink-0"
+                          onClick={() => setSelectedCategory(cat.id)}
+                        >
+                          {cat.name} ({count})
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      variant={selectedCategory === 'uncategorized' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs shrink-0"
+                      onClick={() => setSelectedCategory('uncategorized')}
+                    >
+                      ບໍ່ມີໝວດ ({products.filter(p => p.is_active && !p.category_id).length})
+                    </Button>
+                  </div>
+                </ScrollArea>
               </div>
             </CardContent>
           </Card>

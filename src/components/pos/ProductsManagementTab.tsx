@@ -88,6 +88,7 @@ export function ProductsManagementTab() {
   const { storeSettings } = useStoreSettings();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
@@ -281,6 +282,8 @@ export function ProductsManagementTab() {
   };
 
   const filteredProducts = products.filter(p => {
+    if (filterCategory === 'uncategorized' && p.category_id) return false;
+    if (filterCategory !== 'all' && filterCategory !== 'uncategorized' && p.category_id !== filterCategory) return false;
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return p.name.toLowerCase().includes(query) || p.barcode?.toLowerCase().includes(query);
@@ -306,14 +309,28 @@ export function ProductsManagementTab() {
       <Card className="shrink-0">
         <CardContent className="p-2">
           <div className="flex flex-wrap gap-2 items-center justify-between">
-            <div className="relative flex-1 min-w-[150px]">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ຄົ້ນຫາສິນຄ້າ..."
-                className="pl-8 h-8 text-sm"
-              />
+            <div className="flex gap-2 flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-[150px]">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ຄົ້ນຫາສິນຄ້າ..."
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="ໝວດໝູ່" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ທັງໝົດ</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
+                  <SelectItem value="uncategorized">ບໍ່ມີໝວດ</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-1 flex-wrap">
               {selectedProducts.length > 0 && (
