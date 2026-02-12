@@ -99,7 +99,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const { customers, redeemPoints } = useCustomers();
   const { validateCoupon, calculateCouponDiscount, useCoupon, calculatePromotions } = usePromotions();
   const { isOnline, addOfflineSale, shouldUseOffline } = useOfflineSales();
-  const { createCreditSale } = useCreditSales();
+  const { createCreditSale, creditSales } = useCreditSales();
   const { toast } = useToast();
   const { hasAlerts } = useStockAlerts(products);
   const { profile, user } = useAuth();
@@ -132,8 +132,9 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   const [creditCustomerName, setCreditCustomerName] = useState('');
   const [creditCustomerPhone, setCreditCustomerPhone] = useState('');
   const [creditCustomerAddress, setCreditCustomerAddress] = useState('');
-  const [creditDueDate, setCreditDueDate] = useState('');
+  const [creditDueDate, setCreditDueDate] = useState(new Date().toISOString().split('T')[0]);
   const [creditNote, setCreditNote] = useState('');
+  const [creditSuggestions, setCreditSuggestions] = useState<Array<{name: string; phone: string | null; address: string | null}>>([]);
   
   // Variant dialog state (double-tap on product)
   const [variantProduct, setVariantProduct] = useState<Product | null>(null);
@@ -436,8 +437,9 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
           setCreditCustomerName('');
           setCreditCustomerPhone('');
           setCreditCustomerAddress('');
-          setCreditDueDate('');
+          setCreditDueDate(new Date().toISOString().split('T')[0]);
           setCreditNote('');
+          setCreditSuggestions([]);
         }
         
         // Use coupon if applied
@@ -621,18 +623,7 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                         const now = Date.now();
                         const lastTap = lastTapRef.current;
                         
-                        if (lastTap && lastTap.productId === product.id && (now - lastTap.time) < 300) {
-                          setVariantProduct(product);
-                          setShowVariantDialog(true);
-                          lastTapRef.current = null;
-                        } else {
-                          lastTapRef.current = { productId: product.id, time: now };
-                          setTimeout(() => {
-                            if (lastTapRef.current?.productId === product.id && lastTapRef.current?.time === now) {
-                              addToCart(product);
-                            }
-                          }, 300);
-                        }
+                        addToCart(product);
                       }}
                       onMouseDown={() => {
                         longPressTimeoutRef.current = setTimeout(() => {
@@ -740,57 +731,57 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                     {cart.map(item => (
                       <div 
                         key={item.product_id} 
-                        className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors border"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors border h-14"
                         onClick={() => {
                           setSelectedCartItem(item);
                           setShowCartItemSelector(true);
                         }}
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-base truncate" title={item.product_name}>{item.product_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            ₭{item.unit_price.toLocaleString()} / ຊິ້ນ
+                      <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm leading-tight line-clamp-1" title={item.product_name}>{item.product_name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            ₭{item.unit_price.toLocaleString()} × {item.quantity}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            className="h-10 w-10"
+                            className="h-8 w-8"
                             onClick={() => updateCartItemQuantity(item.product_id, -1)}
                           >
-                            <Minus className="w-5 h-5" />
+                            <Minus className="w-4 h-4" />
                           </Button>
                           <Input
                             type="number"
                             value={item.quantity}
                             onChange={(e) => setCartItemQuantity(item.product_id, parseInt(e.target.value) || 0)}
-                            className="w-16 h-10 text-center text-lg font-bold"
+                            className="w-12 h-8 text-center text-sm font-bold"
                             min={1}
                             max={item.stock_quantity}
                           />
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            className="h-10 w-10"
+                            className="h-8 w-8"
                             onClick={() => updateCartItemQuantity(item.product_id, 1)}
                           >
-                            <Plus className="w-5 h-5" />
+                            <Plus className="w-4 h-4" />
                           </Button>
                         </div>
-                        <p className="font-bold text-lg w-28 text-right shrink-0 text-primary">
+                        <p className="font-bold text-sm w-24 text-right shrink-0 text-primary">
                           ₭{item.total_price.toLocaleString()}
                         </p>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-10 w-10 text-destructive shrink-0"
+                          className="h-8 w-8 text-destructive shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             removeFromCart(item.product_id);
                           }}
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     ))}
@@ -1132,11 +1123,47 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
                       <User className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                       <Input
                         value={creditCustomerName}
-                        onChange={(e) => setCreditCustomerName(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCreditCustomerName(val);
+                          if (val.length >= 1) {
+                            const uniqueCustomers = creditSales
+                              .filter(cs => cs.customer_name.toLowerCase().includes(val.toLowerCase()))
+                              .reduce((acc, cs) => {
+                                if (!acc.find(c => c.name === cs.customer_name)) {
+                                  acc.push({ name: cs.customer_name, phone: cs.customer_phone, address: cs.customer_address });
+                                }
+                                return acc;
+                              }, [] as Array<{name: string; phone: string | null; address: string | null}>);
+                            setCreditSuggestions(uniqueCustomers.slice(0, 5));
+                          } else {
+                            setCreditSuggestions([]);
+                          }
+                        }}
                         placeholder="ຊື່ຜູ້ຊື້..."
                         className="h-8 text-sm pl-7"
                         required
                       />
+                      {creditSuggestions.length > 0 && creditCustomerName && (
+                        <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-32 overflow-y-auto">
+                          {creditSuggestions.map((cs, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              className="w-full px-2 py-1.5 text-left hover:bg-muted text-xs"
+                              onClick={() => {
+                                setCreditCustomerName(cs.name);
+                                if (cs.phone) setCreditCustomerPhone(cs.phone);
+                                if (cs.address) setCreditCustomerAddress(cs.address);
+                                setCreditSuggestions([]);
+                              }}
+                            >
+                              <p className="font-medium">{cs.name}</p>
+                              {cs.phone && <p className="text-muted-foreground">{cs.phone}</p>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
