@@ -25,7 +25,8 @@ import {
   History,
   ChevronDown,
   ChevronRight,
-  Merge
+  Merge,
+  MessageCircle
 } from 'lucide-react';
 import { useCreditSales, CreditSale, CreditPayment } from '@/hooks/useCreditSales';
 import { format } from 'date-fns';
@@ -387,14 +388,33 @@ export function CreditHistoryTab() {
                           <p className="text-xs text-muted-foreground">ລວມ ₭{group.totalAmount.toLocaleString()}</p>
                         </div>
                         {group.totalRemaining > 0 && (
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs shrink-0"
-                            onClick={(e) => { e.stopPropagation(); handleMergePayment(group); }}
-                          >
-                            <Banknote className="w-3.5 h-3.5 mr-1" />
-                            ລວມຈ່າຍ
-                          </Button>
+                          <div className="flex gap-1 shrink-0">
+                            {group.phone && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0 text-green-600 border-green-200 hover:bg-green-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const phone = group.phone!.replace(/[^0-9]/g, '').replace(/^0/, '856');
+                                  const msg = encodeURIComponent(
+                                    `ສະບາຍດີ ${group.name}, ແຈ້ງເຕືອນຍອດຄ້າງຊຳລະ ₭${group.totalRemaining.toLocaleString()} ກະລຸນາຊຳລະດ້ວຍ. ຂອບໃຈ`
+                                  );
+                                  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+                                }}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={(e) => { e.stopPropagation(); handleMergePayment(group); }}
+                            >
+                              <Banknote className="w-3.5 h-3.5 mr-1" />
+                              ລວມຈ່າຍ
+                            </Button>
+                          </div>
                         )}
                       </div>
 
