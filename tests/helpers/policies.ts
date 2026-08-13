@@ -26,11 +26,19 @@ export async function loadPolicies(tables: string[]): Promise<PolicyRow[]> {
          FROM pg_policies
         WHERE schemaname = 'public'`
     );
-    cached = rows;
-    return rows.filter((p) => tables.includes(p.tablename));
+    cached = rows.map((r) => ({ ...r, roles: parseRoles(r.roles) }));
+    return cached.filter((p) => tables.includes(p.tablename));
   } finally {
     await client.end();
   }
+}
+
+/** pg returns text[] columns from pg_policies as a raw "{a,b}" string in some drivers. */
+function parseRoles(roles: unknown): string[] {
+  if (Array.isArray(roles)) return roles as string[];
+  if (typeof roles === 'string')
+    return roles.replace(/^{|}$/g, '').split(',').filter(Boolean);
+  return [];
 }
 
 export async function rlsEnabled(table: string): Promise<boolean> {
