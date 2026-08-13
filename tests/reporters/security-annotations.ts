@@ -1,4 +1,4 @@
-import type { Reporter } from 'vitest/node';
+import type { Reporter, TestModule, TestCase } from 'vitest/node';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -10,8 +10,7 @@ import path from 'node:path';
 
 interface Failure {
   file: string;
-  suite: string;
-  test: string;
+  name: string;
   line?: number;
   message: string;
   expected?: string;
@@ -20,17 +19,28 @@ interface Failure {
 }
 
 const esc = (s: string) =>
-  s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A').replace(/:/g, '%3A').replace(/,/g, '%2C');
+  s
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A')
+    .replace(/:/g, '%3A')
+    .replace(/,/g, '%2C');
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
 
 /** Pulls "<table>.<policy>" / role names out of the assertion message. */
 function ruleHint(message: string): string | undefined {
-  const policy = message.match(/([a-z_]+)\.([A-Za-z0-9_ -]+) (?:ownership check|is unscoped|roles|qual|with_check)/);
-  if (policy) return `policy ${policy[1]}.${policy[2]}`;
-  const table = message.match(/\b(attendances|sales|sale_items)\b/);
-  const role = message.match(/\b(admin|finance|staff|anon|authenticated)\b/);
-  return [table?.[1] && `table ${table[1]}`, role?.[1] && `role ${role[1]}`].filter(Boolean).join(', ') || undefined;
+  const policy = message.match(
+    /([a-z_]+)\.([A-Za-z0-9_ -]+?) (?:ownership check|is unscoped|roles|qual|with_check)/
+  );
+  if (policy) return `policy ${policy[1]}.${policy[2].trim()}`;
+  const table = message.match(/\b(attendances|sale_items|sales)\b/);
+  const role = message.match(/\b(admin|finance|staff|anon|anonymous|authenticated)\b/);
+  return (
+    [table?.[1] && `table ${table[1]}`, role?.[1] && `role ${role[1]}`]
+      .filter(Boolean)
+      .join(', ') || undefined
+  );
 }
 
 function firstProjectFrame(stack?: string): number | undefined {
@@ -41,39 +51,35 @@ function firstProjectFrame(stack?: string): number | undefined {
 export default class SecurityAnnotationsReporter implements Reporter {
   private root = process.cwd();
 
-  onFinished(files: any[] = []) {
+  onTestRunEnd(testModules: readonly TestModule[] = []) {
     const failures: Failure[] = [];
 
-    const walk = (task: any, file: string, trail: string[]) => {
-      if (task.type === 'suite') {
-        for (const child of task.tasks ?? []) walk(child, file, [...trail, task.name].filter(Boolean));
-        return;
+    for (const mod of testModules) {
+      const file = path.relative(this.root, mod.moduleId ?? '');
+      for (const test of mod.children.allTests() as Iterable<TestCase>) {
+        const result = test.result();
+        if (result.state !== 'failed') continue;
+        const errors = result.errors?.length ? result.errors : [{ message: 'unknown failure' } as any];
+        for (const err of errors) {
+          const message = oneLine(err.message ?? '');
+          failures.push({
+            file,
+            name: test.fullName,
+            line: firstProjectFrame(err.stack),
+            message,
+            expected: err.expected !== undefined ? oneLine(String(err.expected)) : undefined,
+            actual: err.actual !== undefined ? oneLine(String(err.actual)) : undefined,
+            detail: ruleHint(`${test.fullName} ${message}`),
+          });
+        }
       }
-      if (task.result?.state !== 'fail') return;
-      for (const err of task.result.errors ?? [{ message: 'unknown failure' }]) {
-        failures.push({
-          file,
-          suite: trail.join(' > '),
-          test: task.name,
-          line: firstProjectFrame(err.stack),
-          message: oneLine(err.message ?? ''),
-          expected: err.expected !== undefined ? oneLine(String(err.expected)) : undefined,
-          actual: err.actual !== undefined ? oneLine(String(err.actual)) : undefined,
-          detail: ruleHint(oneLine(`${task.name} ${err.message ?? ''}`)),
-        });
-      }
-    };
-
-    for (const f of files) {
-      const rel = path.relative(this.root, f.filepath ?? f.name ?? '');
-      for (const t of f.tasks ?? []) walk(t, rel, []);
     }
 
-    // GitHub Actions annotations (rendered inline on the PR).
+    // GitHub Actions annotations (rendered inline on the PR diff).
     for (const f of failures) {
-      const title = `Security rule failed: ${f.detail ?? (f.suite || f.test)}`;
+      const title = `Security rule failed: ${f.detail ?? f.name}`;
       const body = [
-        `${f.suite ? `${f.suite} > ` : ''}${f.test}`,
+        f.name,
         f.detail ? `Rule: ${f.detail}` : undefined,
         `Assertion: ${f.message}`,
         f.expected !== undefined ? `Expected: ${f.expected}` : undefined,
@@ -86,19 +92,19 @@ export default class SecurityAnnotationsReporter implements Reporter {
       );
     }
 
-    // Markdown summary for the job page / PR comment.
+    // Markdown summary for the job page and the PR comment.
     const md = failures.length
       ? [
           '### ❌ Security regression failures',
           '',
-          '| Rule / role | Test | Assertion | Location |',
-          '| --- | --- | --- | --- |',
-          ...failures.map(
-            (f) =>
-              `| ${f.detail ?? '—'} | ${f.suite ? `${f.suite} > ` : ''}${f.test} | ${f.message.replace(/\|/g, '\\|')} | \`${f.file}${f.line ? `:${f.line}` : ''}\` |`
-          ),
+          '| Rule / role | Test | Assertion | Expected | Received | Location |',
+          '| --- | --- | --- | --- | --- | --- |',
+          ...failures.map((f) => {
+            const cell = (v?: string) => (v ? v.replace(/\|/g, '\\|') : '—');
+            return `| ${cell(f.detail)} | ${cell(f.name)} | ${cell(f.message)} | ${cell(f.expected)} | ${cell(f.actual)} | \`${f.file}${f.line ? `:${f.line}` : ''}\` |`;
+          }),
         ].join('\n')
-      : '### ✅ All security regression rules passed (RLS policies, role scoping, anonymous access).';
+      : '### ✅ All security regression rules passed (RLS enabled, role scoping, anonymous access).';
 
     mkdirSync(path.join(this.root, 'test-results'), { recursive: true });
     writeFileSync(path.join(this.root, 'test-results/security-summary.md'), `${md}\n`);
