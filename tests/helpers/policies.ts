@@ -18,7 +18,7 @@ let cached: PolicyRow[] | null = null;
 export async function loadPolicies(tables: string[]): Promise<PolicyRow[]> {
   if (cached) return cached.filter((p) => tables.includes(p.tablename));
 
-  const client = new Client();
+  const client = new Client({ ssl: { rejectUnauthorized: false } });
   await client.connect();
   try {
     const { rows } = await client.query<PolicyRow>(
@@ -34,7 +34,7 @@ export async function loadPolicies(tables: string[]): Promise<PolicyRow[]> {
 }
 
 export async function rlsEnabled(table: string): Promise<boolean> {
-  const client = new Client();
+  const client = new Client({ ssl: { rejectUnauthorized: false } });
   await client.connect();
   try {
     const { rows } = await client.query<{ relrowsecurity: boolean }>(
@@ -50,7 +50,7 @@ export async function rlsEnabled(table: string): Promise<boolean> {
 }
 
 export async function tableGrants(table: string): Promise<Record<string, string[]>> {
-  const client = new Client();
+  const client = new Client({ ssl: { rejectUnauthorized: false } });
   await client.connect();
   try {
     const { rows } = await client.query<{ grantee: string; privilege_type: string }>(
