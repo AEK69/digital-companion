@@ -71,7 +71,7 @@ export default class SecurityAnnotationsReporter implements Reporter {
 
     // GitHub Actions annotations (rendered inline on the PR).
     for (const f of failures) {
-      const title = `Security rule failed: ${f.detail ?? f.suite || f.test}`;
+      const title = `Security rule failed: ${f.detail ?? (f.suite || f.test)}`;
       const body = [
         `${f.suite ? `${f.suite} > ` : ''}${f.test}`,
         f.detail ? `Rule: ${f.detail}` : undefined,
