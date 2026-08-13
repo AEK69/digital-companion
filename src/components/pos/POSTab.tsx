@@ -149,11 +149,11 @@ export function POSTab({ employees, storeInfo, onNavigateToInventory }: POSTabPr
   // Product detail popup state (long press)
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [showDetailPopup, setShowDetailPopup] = useState(false);
-  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const barcodeBufferRef = useRef<string>('');
-  const barcodeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const barcodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-fill employee based on logged-in user
   useEffect(() => {

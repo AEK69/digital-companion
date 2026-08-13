@@ -144,15 +144,24 @@ async function getGoogleAccessToken(): Promise<string> {
     
     if (!tokenData.access_token) {
       console.error('Token response:', JSON.stringify(tokenData));
+      if (tokenData.error === 'invalid_grant') {
+        throw new Error(
+          `Google rejected the service account (${serviceAccountEmail}): ${tokenData.error_description || tokenData.error}. ` +
+          `The private key format is valid, so this means the service account no longer exists, was disabled, ` +
+          `or GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_PRIVATE_KEY come from different service accounts. ` +
+          `Create a new service account key in Google Cloud and update both secrets from the same JSON file.`
+        );
+      }
       throw new Error(`Failed to get Google access token: ${tokenData.error_description || tokenData.error || 'Unknown error'}`);
     }
 
     return tokenData.access_token;
   } catch (error) {
-    console.error('Error importing private key:', error);
-    throw new Error(`Failed to import private key: ${error instanceof Error ? error.message : String(error)}. Please ensure the GOOGLE_PRIVATE_KEY secret contains the full private key from your service account JSON file.`);
+    console.error('Google auth failed:', error);
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
+
 
 // Ensure sheet exists, create if not
 async function ensureSheetExists(

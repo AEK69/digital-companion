@@ -30,7 +30,7 @@ export function useAutoSync({
   spreadsheetId,
   enabled,
 }: UseAutoSyncProps) {
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSyncingRef = useRef(false);
   const lastSyncRef = useRef<string>('');
 

@@ -87,7 +87,7 @@ export function useEmployees() {
   // Update employee
   const updateEmployee = useCallback(async (id: string, updates: Partial<Omit<Employee, 'id'>>) => {
     try {
-      const dbUpdates: Record<string, any> = {};
+      const dbUpdates: { name?: string; avatar?: string | null; hourly_rate?: number } = {};
       if (updates.name !== undefined) dbUpdates.name = updates.name;
       if (updates.avatar !== undefined) dbUpdates.avatar = updates.avatar || null;
       if (updates.hourlyRate !== undefined) dbUpdates.hourly_rate = updates.hourlyRate;
